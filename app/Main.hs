@@ -14,21 +14,23 @@ data Config =
 
 data CreateCommand =
   CreateCommand
-    { payer      :: String
-    , budy       :: String
-    , payerShare :: Int
-    , amount     :: Int
+    { payer       :: String
+    , buddy       :: String
+    , payerShare  :: Int
+    , buddyShare  :: Int
+    , amount      :: Int
     }
 
 main :: IO ()
 main = do
-  migrateDB
-
-migrateDB :: IO ()
-migrateDB = do
-  putStrLn "--- Migrating database"
   url <- getEnv "DB_URL"
   conn <- connectPostgreSQL (pack url)
+  migrateDB conn
+  createExpense conn $
+    CreateCommand "foo" "bar" 40 60 1000
+
+migrateDB :: Connection -> IO ()
+migrateDB conn = do
   withTransaction conn $
     runMigrations True conn $
       [ MigrationInitialization
@@ -36,6 +38,14 @@ migrateDB = do
       ]
   return ()
 
-createExpense :: CreateCommand -> IO ()
-createExpense command =
+createExpense :: Connection -> CreateCommand -> IO ()
+createExpense conn command = do
+  execute conn
+    "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
+    ( payer command
+    , buddy command
+    , payerShare command
+    , buddyShare command
+    , amount command
+    )
   return ()
