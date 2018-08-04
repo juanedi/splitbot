@@ -1,0 +1,15 @@
+version: '2'
+services:
+  postgres:
+    image: postgres:9.5
+    environment:
+      POSTGRES_PASSWORD: splitbot
+      POSTGRES_USER: splitbot
+      POSTGRES_DB: splitbot
+    ports:
+      - "5555:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+
+volumes:
+  db:
