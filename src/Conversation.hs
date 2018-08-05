@@ -1,44 +1,62 @@
-module Conversation (User(..), Conversation, new) where
+module Conversation
+  ( Conversation,
+    Effect(..),
+    Question(..),
+    advance,
+    start
+  ) where
 
-newtype User = User String deriving Show
-
-newtype Amount = Amount Int
+data Conversation
+  = AwaitingAmount
+  | AwaitingPayer  { amount :: Amount }
+  | AwaitingSplit  { payer :: Payer, amount :: Amount }
 
 data Payer = Me | They
 
+newtype Amount = Amount Int
+
 data Split
-  = Equally
-  | Unequally (Int, Int)
+  = Split
+    { me   :: Int
+    , they :: Int
+    }
 
-data Conversation
-  = New
-  | AwaitingBuddy
-  | AwaitingAmount { buddy :: User }
-  | AwaitingPayer  { buddy :: User, amount :: Amount }
-  | AwaitingSplit  { payer :: Payer, buddy :: User, amount :: Amount }
-
-data Message
-  = Init User Int
-  | SetPayer Payer
-  | SetSplit Split
-
-data Reply
-  = Answer Conversation String
-  | AnswerAndTerminate String
+data Question
+  = AskAmount
+  | AskWhoPaid
+  | AskHowToSplit
 
 data Effect
-  = StoreExpense
-    { expensePayer  :: (User, Int)
-    , expenseBuddy  :: (User, Int)
-    , expenseAmount :: Amount
-    }
-  | NoEffect
+  = Ask Question
+  | StoreAndConfirm
+      { expensePayer  :: Payer
+      , expenseAmount :: Amount
+      , expenseSplit  :: Split
+      }
 
-new :: Conversation
-new = New
+start :: (Maybe Conversation, [Effect])
+start =
+  ( Just AwaitingAmount , [ Ask AskAmount ])
 
-advance :: Conversation -> String -> (Reply, Effect)
+advance :: Conversation -> String -> (Maybe Conversation, [Effect])
 advance conversation userMessage =
-  ( AnswerAndTerminate "Alright!"
-  , NoEffect
-  )
+  case conversation of
+    AwaitingAmount ->
+      ( Just $ AwaitingPayer { amount = Amount 100 }
+      , [ Ask AskWhoPaid ]
+      )
+
+    AwaitingPayer amount ->
+      ( Just $ AwaitingSplit { amount = amount, payer = Me }
+      , [ Ask AskHowToSplit ]
+      )
+
+    AwaitingSplit payer amount ->
+      ( Nothing
+      , [ StoreAndConfirm
+          { expensePayer = payer
+          , expenseAmount = amount
+          , expenseSplit = (Split 40 60)
+          }
+        ]
+      )
