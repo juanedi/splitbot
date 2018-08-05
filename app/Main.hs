@@ -9,7 +9,7 @@ import System.Environment (getEnv)
 import System.Exit (exitSuccess)
 import System.IO (hFlush, stdout)
 import Migrations (migrateDB)
-import Conversation (Conversation, Effect(..), Question(..), start, advance)
+import Conversation
 
 data Config =
   Config
@@ -25,7 +25,7 @@ data CreateCommand =
     , amount      :: Int
     }
 
-data UserId = UserA | UserB
+data UserId = UserA | UserB deriving Show
 
 data State =
   State
@@ -62,11 +62,11 @@ processCommand state message =
           advance conversation message
   in
     do
-      sequence (map runEffect effects)
+      sequence (map (runEffect state) effects)
       return $ state { conversation = conversationState }
 
-runEffect :: Effect -> IO ()
-runEffect effect =
+runEffect :: State -> Effect -> IO ()
+runEffect state effect =
   case effect of
     Ask question ->
       sendMessage $
@@ -80,23 +80,47 @@ runEffect effect =
           AskHowToSplit ->
             "How will you split it?"
 
-    StoreAndConfirm _ _ _ ->
+    StoreAndConfirm expense ->
       do
-        -- TODO: store in DB
+        createExpense (conn state) (userId state) expense
         sendMessage "Done!"
 
 sendMessage :: String -> IO ()
 sendMessage =
   putStrLn
 
-createExpense :: Connection -> CreateCommand -> IO ()
-createExpense conn command = do
-  execute conn
-    "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-    ( payer command
-    , buddy command
-    , payerShare command
-    , buddyShare command
-    , amount command
-    )
-  return ()
+createExpense :: Connection -> UserId -> Expense -> IO ()
+createExpense conn userId expense =
+  let
+    otherUser userId =
+      case userId of
+        UserA -> UserB
+        UserB -> UserA
+
+    split = expenseSplit expense
+
+    (payer, buddy) =
+      case expensePayer expense of
+        Me ->
+          (userId, otherUser userId)
+        They ->
+          (otherUser userId, userId)
+
+    (payerShare, budyShare) =
+      case expensePayer expense of
+        Me ->
+          ( myPart split, theirPart split)
+
+        They ->
+          ( theirPart split, myPart split)
+  in
+    do
+      execute conn
+        "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
+        ( show $ payer
+        , show $ buddy
+        , payerShare
+        , budyShare
+        , value $ expenseAmount expense
+        )
+      return ()

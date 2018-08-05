@@ -1,7 +1,11 @@
 module Conversation
-  ( Conversation,
+  ( Amount(..),
+    Conversation,
     Effect(..),
+    Expense(..),
     Question(..),
+    Payer(..),
+    Split(..),
     advance,
     start
   ) where
@@ -13,12 +17,12 @@ data Conversation
 
 data Payer = Me | They
 
-newtype Amount = Amount Int
+newtype Amount = Amount { value :: Int }
 
 data Split
   = Split
-    { me   :: Int
-    , they :: Int
+    { myPart    :: Int
+    , theirPart :: Int
     }
 
 data Question
@@ -28,11 +32,15 @@ data Question
 
 data Effect
   = Ask Question
-  | StoreAndConfirm
-      { expensePayer  :: Payer
-      , expenseAmount :: Amount
-      , expenseSplit  :: Split
-      }
+  | StoreAndConfirm Expense
+
+data Expense =
+  Expense
+    { expensePayer  :: Payer
+    , expenseAmount :: Amount
+    , expenseSplit  :: Split
+    }
+
 
 start :: (Maybe Conversation, [Effect])
 start =
@@ -53,10 +61,11 @@ advance conversation userMessage =
 
     AwaitingSplit payer amount ->
       ( Nothing
-      , [ StoreAndConfirm
-          { expensePayer = payer
-          , expenseAmount = amount
-          , expenseSplit = (Split 40 60)
-          }
+      , [ StoreAndConfirm $
+            Expense
+              { expensePayer = payer
+              , expenseAmount = amount
+              , expenseSplit = (Split 40 60)
+              }
         ]
       )
