@@ -11,20 +11,6 @@ import System.IO (hFlush, stdout)
 import Migrations (migrateDB)
 import Conversation
 
-data Config =
-  Config
-    { dbUrl :: String
-    }
-
-data CreateCommand =
-  CreateCommand
-    { payer       :: String
-    , buddy       :: String
-    , payerShare  :: Int
-    , buddyShare  :: Int
-    , amount      :: Int
-    }
-
 data UserId = UserA | UserB deriving Show
 
 data State =
@@ -39,19 +25,27 @@ main = do
   url <- getEnv "DB_URL"
   conn <- connectPostgreSQL (pack url)
   migrateDB conn
-  let state = State conn UserA Nothing
-  runServer state
+  runServer $
+    State
+      { conn = conn
+      , userId = UserA
+      , conversation = Nothing
+      }
 
 runServer :: State -> IO ()
 runServer state = do
-  putStr "> "
-  hFlush stdout
-  command <- getLine
-  newState <- processCommand state command
+  message <- readMessage
+  newState <- processMessage state message
   runServer newState
 
-processCommand :: State -> String -> IO (State)
-processCommand state message =
+readMessage :: IO (String)
+readMessage = do
+  putStr "> "
+  hFlush stdout
+  getLine
+
+processMessage :: State -> String -> IO (State)
+processMessage state message =
   let
     (conversationState, effects) =
       case conversation state of
