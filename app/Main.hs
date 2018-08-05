@@ -69,21 +69,31 @@ runEffect :: State -> Effect -> IO ()
 runEffect state effect =
   case effect of
     Ask question ->
-      sendMessage $
-        case question of
-          AskAmount ->
-            "How much?"
+      sendMessage (questionText question)
 
-          AskWhoPaid ->
-            "Who paid?"
-
-          AskHowToSplit ->
-            "How will you split it?"
+    ApologizeAndAsk question ->
+      sendMessage (apologizing $ questionText question)
 
     StoreAndConfirm expense ->
       do
         createExpense (conn state) (userId state) expense
         sendMessage "Done!"
+
+apologizing :: String -> String
+apologizing message =
+  "Sorry, I couldn't understand that. " ++ message
+
+questionText :: Question -> String
+questionText question =
+  case question of
+    AskAmount ->
+      "How much?"
+
+    AskWhoPaid ->
+      "Who paid?"
+
+    AskHowToSplit ->
+      "How will you split it?"
 
 sendMessage :: String -> IO ()
 sendMessage =

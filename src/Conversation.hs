@@ -10,6 +10,8 @@ module Conversation
     start
   ) where
 
+import Text.Read (readMaybe)
+
 data Conversation
   = AwaitingAmount
   | AwaitingPayer  { amount :: Amount }
@@ -32,6 +34,7 @@ data Question
 
 data Effect
   = Ask Question
+  | ApologizeAndAsk Question
   | StoreAndConfirm Expense
 
 data Expense =
@@ -50,22 +53,70 @@ advance :: Conversation -> String -> (Maybe Conversation, [Effect])
 advance conversation userMessage =
   case conversation of
     AwaitingAmount ->
-      ( Just $ AwaitingPayer { amount = Amount 100 }
-      , [ Ask AskWhoPaid ]
-      )
+      case readAmount userMessage of
+        Just amount ->
+          ( Just $ AwaitingPayer { amount = amount }
+          , [ Ask AskWhoPaid ]
+          )
+        Nothing ->
+          ( Just conversation
+          , [ ApologizeAndAsk AskAmount ]
+          )
 
     AwaitingPayer amount ->
-      ( Just $ AwaitingSplit { amount = amount, payer = Me }
-      , [ Ask AskHowToSplit ]
-      )
+      case readPayer userMessage of
+        Just payer ->
+          ( Just $ AwaitingSplit { amount = amount, payer = payer }
+          , [ Ask AskHowToSplit ]
+          )
+        Nothing ->
+          ( Just conversation
+          , [ ApologizeAndAsk AskWhoPaid ]
+          )
 
     AwaitingSplit payer amount ->
-      ( Nothing
-      , [ StoreAndConfirm $
-            Expense
-              { expensePayer = payer
-              , expenseAmount = amount
-              , expenseSplit = (Split 40 60)
-              }
-        ]
-      )
+      case readSplit userMessage of
+        Just split ->
+          ( Nothing
+          , [ StoreAndConfirm $
+                Expense
+                  { expensePayer = payer
+                  , expenseAmount = amount
+                  , expenseSplit = split
+                  }
+            ]
+          )
+        Nothing ->
+          ( Just conversation
+          , [ ApologizeAndAsk AskHowToSplit ]
+          )
+
+readAmount :: String -> Maybe Amount
+readAmount str =
+  fmap Amount $ (readMaybe str)
+
+readPayer :: String -> Maybe Payer
+readPayer str =
+  case str of
+    "me" ->
+      Just Me
+    "they" ->
+      Just They
+    _ ->
+      Nothing
+
+readSplit :: String -> Maybe Split
+readSplit str =
+  case str of
+    "evenly" ->
+      Just $ Split 50 50
+
+    "all on me" ->
+      Just $ Split 100 0
+
+    "all on them" ->
+      Just $ Split 0 100
+
+    _ ->
+      -- TODO: parse things such as "40% me / %30 them"
+      Nothing
