@@ -3,6 +3,7 @@ module Main where
 
 import Data.ByteString.Char8 (pack)
 import Data.Traversable (sequence)
+import qualified Data.Map.Strict as Map
 import Database.PostgreSQL.Simple
 import Control.Concurrent (threadDelay)
 import System.Environment (getEnv)
@@ -11,14 +12,15 @@ import System.IO (hFlush, stdout)
 import Migrations (migrateDB)
 import Conversation
 
-data UserId = UserA | UserB deriving Show
+data UserId = UserA | UserB deriving (Show, Eq, Ord)
 
 data State =
   State
     { conn :: Connection
-    , userId :: UserId
-    , conversation :: Maybe Conversation
+    , conversations :: Map.Map UserId Conversation
     }
+
+data Message = Message UserId String
 
 main :: IO ()
 main = do
@@ -28,8 +30,7 @@ main = do
   runServer $
     State
       { conn = conn
-      , userId = UserA
-      , conversation = Nothing
+      , conversations = Map.empty
       }
 
 runServer :: State -> IO ()
@@ -38,29 +39,40 @@ runServer state = do
   newState <- processMessage state message
   runServer newState
 
-readMessage :: IO (String)
+readMessage :: IO (Message)
 readMessage = do
   putStr "> "
   hFlush stdout
-  getLine
+  text <- getLine
+  return $ Message UserA text
 
-processMessage :: State -> String -> IO (State)
-processMessage state message =
+sendMessage :: String -> IO ()
+sendMessage =
+  putStrLn
+
+processMessage :: State -> Message -> IO (State)
+processMessage state (Message userId text) =
   let
-    (conversationState, effects) =
-      case conversation state of
+    currentConversation =
+      Map.lookup userId (conversations state)
+
+    (updatedConversation, effects) =
+      case currentConversation of
         Nothing ->
           start
 
         Just conversation ->
-          advance conversation message
+          advance conversation text
+
+    updatedConversations =
+      Map.alter (const updatedConversation) userId (conversations state)
   in
     do
-      sequence (map (runEffect state) effects)
-      return $ state { conversation = conversationState }
+      sequence (Prelude.map (runEffect state userId) effects)
+      return $ state { conversations = updatedConversations }
 
-runEffect :: State -> Effect -> IO ()
-runEffect state effect =
+runEffect :: State -> UserId -> Effect -> IO ()
+runEffect state currentUser effect =
   case effect of
     Ask question ->
       sendMessage (questionText question)
@@ -70,7 +82,7 @@ runEffect state effect =
 
     StoreAndConfirm expense ->
       do
-        createExpense (conn state) (userId state) expense
+        createExpense (conn state) currentUser expense
         sendMessage "Done!"
 
 apologizing :: String -> String
@@ -88,10 +100,6 @@ questionText question =
 
     AskHowToSplit ->
       "How will you split it?"
-
-sendMessage :: String -> IO ()
-sendMessage =
-  putStrLn
 
 createExpense :: Connection -> UserId -> Expense -> IO ()
 createExpense conn userId expense =
