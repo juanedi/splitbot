@@ -5,9 +5,7 @@ import Data.ByteString.Char8 (pack)
 import Data.Traversable (sequence)
 import qualified Data.Map.Strict as Map
 import Database.PostgreSQL.Simple
-import Control.Concurrent (threadDelay)
 import System.Environment (getEnv)
-import System.Exit (exitSuccess)
 import System.IO (hFlush, stdout)
 import Migrations (migrateDB)
 import Conversation
@@ -16,7 +14,7 @@ data UserId = UserA | UserB deriving (Show, Eq, Ord)
 
 data State =
   State
-    { conn :: Connection
+    { currentConnection :: Connection
     , conversations :: Map.Map UserId Conversation
     }
 
@@ -29,7 +27,7 @@ main = do
   migrateDB conn
   runServer $
     State
-      { conn = conn
+      { currentConnection = conn
       , conversations = Map.empty
       }
 
@@ -68,7 +66,7 @@ processMessage state (Message userId text) =
       Map.alter (const updatedConversation) userId (conversations state)
   in
     do
-      sequence (Prelude.map (runEffect state userId) effects)
+      _ <- sequence (Prelude.map (runEffect state userId) effects)
       return $ state { conversations = updatedConversations }
 
 runEffect :: State -> UserId -> Effect -> IO ()
@@ -82,7 +80,7 @@ runEffect state currentUser effect =
 
     StoreAndConfirm expense ->
       do
-        createExpense (conn state) currentUser expense
+        createExpense (currentConnection state) currentUser expense
         sendMessage "Done!"
 
 apologizing :: String -> String
@@ -102,7 +100,7 @@ questionText question =
       "How will you split it?"
 
 createExpense :: Connection -> UserId -> Expense -> IO ()
-createExpense conn userId expense =
+createExpense conn currentUser expense =
   let
     otherUser userId =
       case userId of
@@ -114,9 +112,9 @@ createExpense conn userId expense =
     (payer, buddy) =
       case expensePayer expense of
         Me ->
-          (userId, otherUser userId)
+          (currentUser, otherUser currentUser)
         They ->
-          (otherUser userId, userId)
+          (otherUser currentUser, currentUser)
 
     (payerShare, budyShare) =
       case expensePayer expense of
@@ -127,12 +125,12 @@ createExpense conn userId expense =
           ( theirPart split, myPart split)
   in
     do
-      execute conn
-        "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-        ( show $ payer
-        , show $ buddy
-        , payerShare
-        , budyShare
-        , value $ expenseAmount expense
-        )
+      _ <- execute conn
+            "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
+            ( show $ payer
+            , show $ buddy
+            , payerShare
+            , budyShare
+            , value $ expenseAmount expense
+            )
       return ()
