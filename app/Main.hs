@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Data.ByteString.Char8 (pack)
@@ -6,9 +5,9 @@ import Data.Traversable (sequence)
 import qualified Data.Map.Strict as Map
 import Database.PostgreSQL.Simple
 import System.Environment (getEnv)
-import System.IO (hFlush, stdout)
 import Migrations (migrateDB)
 import Conversation
+import qualified Telegram
 
 data UserId = UserA | UserB deriving (Show, Eq, Ord)
 
@@ -16,6 +15,7 @@ data State =
   State
     { currentConnection :: Connection
     , conversations :: Map.Map UserId Conversation
+    , telegramState :: Telegram.State
     }
 
 data Message = Message UserId String
@@ -23,30 +23,41 @@ data Message = Message UserId String
 main :: IO ()
 main = do
   url <- getEnv "DB_URL"
+  telegramToken <- getEnv "TELEGRAM_TOKEN"
   conn <- connectPostgreSQL (pack url)
   migrateDB conn
   runServer $
     State
       { currentConnection = conn
       , conversations = Map.empty
+      , telegramState = Telegram.init telegramToken
       }
 
 runServer :: State -> IO ()
 runServer state = do
-  message <- readMessage
-  newState <- processMessage state message
+  (message, newState) <- readMessage state
+  newState <- processMessage newState message
   runServer newState
 
-readMessage :: IO (Message)
-readMessage = do
-  putStr "> "
-  hFlush stdout
-  text <- getLine
-  return $ Message UserA text
+readMessage :: State -> IO (Message, State)
+readMessage state = do
+  (update, updatedState) <- Telegram.getUpdate (telegramState state)
+  putStrLn $ "<< " ++ (Telegram.text update)
+  return $
+    (Message
+        (userId (Telegram.username update))
+        (Telegram.text update)
+    , state { telegramState = updatedState }
+    )
+
+userId :: String -> UserId
+userId =
+  -- TODO: read from config
+  const UserA
 
 sendMessage :: String -> IO ()
-sendMessage =
-  putStrLn
+sendMessage message =
+  putStrLn $ ">> " ++ message
 
 processMessage :: State -> Message -> IO (State)
 processMessage state (Message userId text) =

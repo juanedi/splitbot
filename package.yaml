@@ -25,6 +25,9 @@ dependencies:
 - containers
 - postgresql-simple
 - postgresql-simple-migration
+- http-client
+- http-client-tls
+- aeson
 
 library:
   source-dirs: src
