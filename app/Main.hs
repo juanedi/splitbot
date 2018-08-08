@@ -29,12 +29,6 @@ data UserState =
     , conversation :: Maybe Conversation
     }
 
-data Message =
-  Message
-    { fromUserId :: UserId
-    , text :: String
-    }
-
 main :: IO ()
 main = do
   userA <- getEnv "USER_A"
@@ -53,26 +47,24 @@ main = do
 
 runServer :: State -> IO ()
 runServer state = do
-  (message, newState) <- readMessage state
-  newState <- processMessage newState message
-  runServer newState
-
-readMessage :: State -> IO (Message, State)
-readMessage state = do
-  (update, updatedState) <- Telegram.getUpdate (telegramState state)
-  let username = Telegram.username update
+  (message, newState) <- getMessage state
+  let username = Telegram.username message
   let maybeUserId = matchUserId state username
-  putStrLn $ "<< " ++ (Telegram.text update)
   case maybeUserId of
     Nothing ->
-      readMessage state
+      do
+        putStrLn $ "Ignoring message from unknown user" ++ username
+        runServer newState
     Just userId ->
-      return $
-        (Message
-            userId
-            (Telegram.text update)
-        , state { telegramState = updatedState }
-        )
+        processMessage newState userId message >>= runServer
+
+getMessage :: State -> IO (Telegram.Message, State)
+getMessage state = do
+  (message, updatedState) <- Telegram.getMessage (telegramState state)
+  return $
+    ( message
+    , state { telegramState = updatedState }
+    )
 
 matchUserId :: State -> String -> Maybe UserId
 matchUserId state uname
@@ -84,13 +76,13 @@ sendMessage :: String -> IO ()
 sendMessage message =
   putStrLn $ ">> " ++ message
 
-processMessage :: State -> Message -> IO (State)
-processMessage state (Message userId text) =
+processMessage :: State -> UserId -> Telegram.Message -> IO (State)
+processMessage state userId message =
   let
     currentConversation =
       case userId of
-              UserA -> (userA >>> conversation) state
-              UserB -> (userB >>> conversation) state
+        UserA -> (userA >>> conversation) state
+        UserB -> (userB >>> conversation) state
 
     (updatedConversation, effects) =
       case currentConversation of
@@ -98,7 +90,7 @@ processMessage state (Message userId text) =
           start
 
         Just conversation ->
-          advance conversation text
+          advance conversation (Telegram.text message)
 
     updatedState =
       case userId of

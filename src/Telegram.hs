@@ -20,8 +20,8 @@ data FetchState
   | NeedMore (Maybe Int)
     deriving Show
 
-data Update =
-  Update
+data Message =
+  Message
     { username :: String
     , text :: String
     } deriving Show
@@ -33,12 +33,12 @@ init token =
     , fetchState = NeedMore Nothing
     }
 
-getUpdate :: State -> IO (Update, State)
-getUpdate state =
+getMessage :: State -> IO (Message, State)
+getMessage state =
   case fetchState state of
     Buffered nextUpdate rest ->
       return
-        ( buildUpdate nextUpdate
+        ( toMessage nextUpdate
         , case rest of
             u : us ->
               state { fetchState = Buffered u us }
@@ -52,20 +52,20 @@ getUpdate state =
         response <- requestUpdates (token state) lastUpdateId
         case Telegram.Api.result response of
           u : us ->
-            getUpdate $ state { fetchState = Buffered u us }
+            getMessage $ state { fetchState = Buffered u us }
 
           [] ->
             do
               putStrLn "No updates found! Will retry in a bit"
               threadDelay (1 * 1000 * 1000)
-              getUpdate state
+              getMessage state
 
-buildUpdate :: Telegram.Api.Update -> Update
-buildUpdate update =
+toMessage :: Telegram.Api.Update -> Message
+toMessage update =
   let
     message = Telegram.Api.message update
   in
-  Update
+  Message
     { username = (Telegram.Api.username . Telegram.Api.from) message
     , text = Telegram.Api.text message
     }
@@ -113,6 +113,6 @@ queryString =
   "?"
 
 
-sendMessage :: String -> String -> IO ()
-sendMessage _ _ =
-  return ()
+sendMessage :: Message -> IO ()
+sendMessage (Message _ text) =
+  putStrLn text
