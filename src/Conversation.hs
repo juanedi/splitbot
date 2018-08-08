@@ -10,6 +10,7 @@ module Conversation
   , start
   ) where
 
+import Conversation.Replies
 import Text.Read (readMaybe)
 
 data Conversation
@@ -37,9 +38,9 @@ data Question
   | AskHowToSplit
 
 data Effect
-  = Ask Question
-  | ApologizeAndAsk Question
-  | StoreAndConfirm Expense
+  = Reply String
+  | StoreAndReply Expense
+                  String
 
 data Expense = Expense
   { expensePayer :: Payer
@@ -48,34 +49,28 @@ data Expense = Expense
   }
 
 start :: (Maybe Conversation, [Effect])
-start = (Just AwaitingAmount, [Ask AskAmount])
+start = (Just AwaitingAmount, [Reply askAmount])
 
 advance :: String -> Conversation -> (Maybe Conversation, [Effect])
 advance userMessage conversation =
   case conversation of
     AwaitingAmount ->
       case readAmount userMessage of
-        Just amount ->
-          (Just $ AwaitingPayer {amount = amount}, [Ask AskWhoPaid])
-        Nothing -> (Just conversation, [ApologizeAndAsk AskAmount])
+        Just amount -> (Just $ AwaitingPayer {amount = amount}, [Reply askWhoPaid])
+        Nothing -> (Just conversation, [Reply $ apologizing askAmount])
     AwaitingPayer amount ->
       case readPayer userMessage of
-        Just payer ->
-          ( Just $ AwaitingSplit {amount = amount, payer = payer}
-          , [Ask AskHowToSplit])
-        Nothing -> (Just conversation, [ApologizeAndAsk AskWhoPaid])
+        Just payer -> (Just $ AwaitingSplit {amount = amount, payer = payer}, [Reply askHowToSplit])
+        Nothing -> (Just conversation, [Reply $ apologizing askWhoPaid])
     AwaitingSplit payer amount ->
       case readSplit userMessage of
         Just split ->
           ( Nothing
-          , [ StoreAndConfirm $
-              Expense
-                { expensePayer = payer
-                , expenseAmount = amount
-                , expenseSplit = split
-                }
+          , [ StoreAndReply
+                (Expense {expensePayer = payer, expenseAmount = amount, expenseSplit = split})
+                done
             ])
-        Nothing -> (Just conversation, [ApologizeAndAsk AskHowToSplit])
+        Nothing -> (Just conversation, [Reply $ apologizing askHowToSplit])
 
 readAmount :: String -> Maybe Amount
 readAmount str = fmap Amount $ (readMaybe str)

@@ -5,7 +5,7 @@ import Conversation
 import Data.ByteString.Char8 (pack)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
-import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
 import Migrations (migrateDB)
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
@@ -19,16 +19,16 @@ data State = State
   , telegram :: Telegram.State
   }
 
-data UserId
-  = UserA
-  | UserB
-  deriving (Show)
-
 data UserState = UserState
   { username :: Telegram.Username
   , buddy :: Telegram.Username
   , conversation :: Maybe Conversation
   }
+
+data UserId
+  = UserA
+  | UserB
+  deriving (Show)
 
 main :: IO ()
 main = do
@@ -80,18 +80,6 @@ processMessage state userId message =
    in do _ <- runEffects state userState (Telegram.chatId message) effects
          return updatedState
 
-getUserState :: UserId -> State -> UserState
-getUserState userId =
-  case userId of
-    UserA -> userA
-    UserB -> userB
-
-setUserState :: UserId -> UserState -> State -> State
-setUserState userId newUserState state =
-  case userId of
-    UserA -> state {userA = newUserState}
-    UserB -> state {userB = newUserState}
-
 runEffects :: State -> UserState -> Telegram.ChatId -> [Effect] -> IO ()
 runEffects state userState chatId effects = do
   _ <- sequence (run <$> effects)
@@ -104,24 +92,24 @@ runEffect state userState chatId effect =
   let conn = currentConnection state
       telegramState = telegram state
    in case effect of
-        Ask question -> sendMessage telegramState chatId (questionText question)
-        ApologizeAndAsk question ->
-          sendMessage telegramState chatId (apologizing $ questionText question)
-        StoreAndConfirm expense -> do
+        Reply text -> sendMessage telegramState chatId text
+        StoreAndReply expense text -> do
           createExpense conn (username userState) (buddy userState) expense
-          sendMessage telegramState chatId "Done!"
+          sendMessage telegramState chatId text
 
 sendMessage :: Telegram.State -> Telegram.ChatId -> String -> IO ()
 sendMessage telegram chatId text = do
   putStrLn $ ">> " ++ text
   Telegram.sendMessage telegram chatId text
 
-apologizing :: String -> String
-apologizing message = "Sorry, I couldn't understand that. " ++ message
+getUserState :: UserId -> State -> UserState
+getUserState userId =
+  case userId of
+    UserA -> userA
+    UserB -> userB
 
-questionText :: Question -> String
-questionText question =
-  case question of
-    AskAmount -> "How much?"
-    AskWhoPaid -> "Who paid?"
-    AskHowToSplit -> "How will you split it?"
+setUserState :: UserId -> UserState -> State -> State
+setUserState userId newUserState state =
+  case userId of
+    UserA -> state {userA = newUserState}
+    UserB -> state {userB = newUserState}
