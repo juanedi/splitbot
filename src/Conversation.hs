@@ -49,8 +49,8 @@ start :: (Maybe Conversation, [Effect])
 start =
   ( Just AwaitingAmount , [ Ask AskAmount ])
 
-advance :: Conversation -> String -> (Maybe Conversation, [Effect])
-advance conversation userMessage =
+advance :: String -> Conversation -> (Maybe Conversation, [Effect])
+advance userMessage conversation =
   case conversation of
     AwaitingAmount ->
       case readAmount userMessage of

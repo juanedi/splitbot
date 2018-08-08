@@ -1,6 +1,7 @@
 module Main where
 
 import Data.ByteString.Char8 (pack)
+import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
 import Database.PostgreSQL.Simple
 import System.Environment (getEnv)
@@ -81,24 +82,18 @@ processMessage state userId message =
       getUserState userId state
 
     (updatedConversation, effects) =
-      case conversation currentUserState of
-        Nothing ->
-          start
+      (conversation
+        >>> fmap (advance $ Telegram.text message)
+        >>> fromMaybe start) currentUserState
 
-        Just conv ->
-          advance conv (Telegram.text message)
-
-    updatedUserState =
+    userState =
       currentUserState { conversation = updatedConversation }
 
     updatedState =
-      setUserState
-        userId
-        updatedUserState
-        state
+      setUserState userId userState state
   in
     do
-      _ <- sequence (Prelude.map (runEffect state updatedUserState (Telegram.chatId message)) effects)
+      _ <- runEffects state userState (Telegram.chatId message) effects
       return updatedState
 
 getUserState :: UserId -> State -> UserState
@@ -113,34 +108,40 @@ setUserState userId newUserState state=
     UserA -> state { userA = newUserState }
     UserB -> state { userB = newUserState }
 
+runEffects :: State -> UserState -> Telegram.ChatId -> [Effect] -> IO ()
+runEffects state userState chatId effects =
+  do
+    _ <- sequence (run <$> effects)
+    return ()
+  where
+    run = runEffect state userState chatId
+
 runEffect :: State -> UserState -> Telegram.ChatId -> Effect -> IO ()
 runEffect state userState chatId effect =
+  let
+    conn =
+      currentConnection state
+
+    telegram =
+      telegramState state
+  in
   case effect of
     Ask question ->
-      sendMessage
-          state
-          chatId
-          (questionText question)
+      sendMessage telegram chatId (questionText question)
 
     ApologizeAndAsk question ->
-      sendMessage
-        state
-        chatId
-        (apologizing $ questionText question)
+      sendMessage telegram chatId (apologizing $ questionText question)
 
     StoreAndConfirm expense ->
       do
-        createExpense (currentConnection state) (username userState) (buddy userState) expense
-        sendMessage
-          state
-          chatId
-          "Done!"
+        createExpense conn (username userState) (buddy userState) expense
+        sendMessage telegram chatId "Done!"
 
-sendMessage :: State -> Telegram.ChatId -> String -> IO ()
-sendMessage state chatId text = do
+sendMessage :: Telegram.State -> Telegram.ChatId -> String -> IO ()
+sendMessage telegram chatId text = do
   putStrLn $ ">> " ++ text
   Telegram.sendMessage
-    (telegramState state)
+    telegram
     chatId
     text
 
