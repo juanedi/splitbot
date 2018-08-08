@@ -26,6 +26,7 @@ data UserId
 data UserState =
   UserState
     { username :: Username
+    , buddy :: Username
     , conversation :: Maybe Conversation
     }
 
@@ -40,8 +41,8 @@ main = do
   runServer $
     State
       { currentConnection = conn
-      , userA = UserState (Username userA) Nothing
-      , userB = UserState (Username userB) Nothing
+      , userA = UserState (Username userA) (Username userB) Nothing
+      , userB = UserState (Username userB) (Username userA) Nothing
       , telegramState = Telegram.init telegramToken
       }
 
@@ -61,6 +62,7 @@ runServer state = do
 getMessage :: State -> IO (Telegram.Message, State)
 getMessage state = do
   (message, updatedState) <- Telegram.getMessage (telegramState state)
+  putStrLn $ "<< " ++ (show message)
   return $
     ( message
     , state { telegramState = updatedState }
@@ -72,53 +74,75 @@ matchUserId state uname
   | (userB >>> username >>> toString) state == uname = Just UserB
   | otherwise = Nothing
 
-sendMessage :: String -> IO ()
-sendMessage message =
-  putStrLn $ ">> " ++ message
-
 processMessage :: State -> UserId -> Telegram.Message -> IO (State)
 processMessage state userId message =
   let
-    currentConversation =
-      case userId of
-        UserA -> (userA >>> conversation) state
-        UserB -> (userB >>> conversation) state
+    currentUserState =
+      getUserState userId state
 
     (updatedConversation, effects) =
-      case currentConversation of
+      case conversation currentUserState of
         Nothing ->
           start
 
-        Just conversation ->
-          advance conversation (Telegram.text message)
+        Just conv ->
+          advance conv (Telegram.text message)
+
+    updatedUserState =
+      currentUserState { conversation = updatedConversation }
 
     updatedState =
-      case userId of
-        UserA -> state { userA = (userA state) { conversation = updatedConversation }}
-        UserB -> state { userB = (userB state) { conversation = updatedConversation }}
+      setUserState
+        userId
+        updatedUserState
+        state
   in
     do
-      _ <- sequence (Prelude.map (runEffect state userId) effects)
+      _ <- sequence (Prelude.map (runEffect state updatedUserState (Telegram.chatId message)) effects)
       return updatedState
 
-runEffect :: State -> UserId -> Effect -> IO ()
-runEffect state currentUserId effect =
+getUserState :: UserId -> State -> UserState
+getUserState userId =
+  case userId of
+    UserA -> userA
+    UserB -> userB
+
+setUserState :: UserId -> UserState -> State -> State
+setUserState userId newUserState state=
+  case userId of
+    UserA -> state { userA = newUserState }
+    UserB -> state { userB = newUserState }
+
+runEffect :: State -> UserState -> Telegram.ChatId -> Effect -> IO ()
+runEffect state userState chatId effect =
   case effect of
     Ask question ->
-      sendMessage (questionText question)
+      sendMessage
+          state
+          chatId
+          (questionText question)
 
     ApologizeAndAsk question ->
-      sendMessage (apologizing $ questionText question)
+      sendMessage
+        state
+        chatId
+        (apologizing $ questionText question)
 
     StoreAndConfirm expense ->
-      let
-        (currentUsername, otherUsername) =
-          case currentUserId of
-            UserA -> ((userA >>> username) state, (userB >>> username) state)
-            UserB -> ((userB >>> username) state, (userA >>> username) state)
-      in do
-        createExpense (currentConnection state) currentUsername otherUsername expense
-        sendMessage "Done!"
+      do
+        createExpense (currentConnection state) (username userState) (buddy userState) expense
+        sendMessage
+          state
+          chatId
+          "Done!"
+
+sendMessage :: State -> Telegram.ChatId -> String -> IO ()
+sendMessage state chatId text = do
+  putStrLn $ ">> " ++ text
+  Telegram.sendMessage
+    (telegramState state)
+    chatId
+    text
 
 apologizing :: String -> String
 apologizing message =

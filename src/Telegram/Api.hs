@@ -21,7 +21,8 @@ data Message =
 
 data User =
   User
-    { username :: String
+    { id :: Integer
+    , username :: String
     } deriving Show
 
 instance FromJSON UpdateResponse where
@@ -40,4 +41,5 @@ instance FromJSON Message where
 
 instance FromJSON User where
   parseJSON = withObject "user" $ \o ->
-    fmap User (o .: "username")
+    User <$> (o .: "id")
+         <*> (o .: "username")
