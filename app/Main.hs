@@ -2,26 +2,43 @@ module Main where
 
 import Data.ByteString.Char8 (pack)
 import Data.Traversable (sequence)
-import qualified Data.Map.Strict as Map
 import Database.PostgreSQL.Simple
 import System.Environment (getEnv)
 import Migrations (migrateDB)
 import Conversation
 import qualified Telegram
-
-data UserId = UserA | UserB deriving (Show, Eq, Ord)
+import Control.Arrow ((>>>))
 
 data State =
   State
     { currentConnection :: Connection
-    , conversations :: Map.Map UserId Conversation
+    , userA :: UserState
+    , userB :: UserState
     , telegramState :: Telegram.State
     }
 
-data Message = Message UserId String
+data Username = Username { toString :: String }
+
+data UserId
+  = UserA
+  | UserB deriving Show
+
+data UserState =
+  UserState
+    { username :: Username
+    , conversation :: Maybe Conversation
+    }
+
+data Message =
+  Message
+    { fromUserId :: UserId
+    , text :: String
+    }
 
 main :: IO ()
 main = do
+  userA <- getEnv "USER_A"
+  userB <- getEnv "USER_B"
   url <- getEnv "DB_URL"
   telegramToken <- getEnv "TELEGRAM_TOKEN"
   conn <- connectPostgreSQL (pack url)
@@ -29,7 +46,8 @@ main = do
   runServer $
     State
       { currentConnection = conn
-      , conversations = Map.empty
+      , userA = UserState (Username userA) Nothing
+      , userB = UserState (Username userB) Nothing
       , telegramState = Telegram.init telegramToken
       }
 
@@ -42,18 +60,25 @@ runServer state = do
 readMessage :: State -> IO (Message, State)
 readMessage state = do
   (update, updatedState) <- Telegram.getUpdate (telegramState state)
+  let username = Telegram.username update
+  let maybeUserId = matchUserId state username
   putStrLn $ "<< " ++ (Telegram.text update)
-  return $
-    (Message
-        (userId (Telegram.username update))
-        (Telegram.text update)
-    , state { telegramState = updatedState }
-    )
+  case maybeUserId of
+    Nothing ->
+      readMessage state
+    Just userId ->
+      return $
+        (Message
+            userId
+            (Telegram.text update)
+        , state { telegramState = updatedState }
+        )
 
-userId :: String -> UserId
-userId =
-  -- TODO: read from config
-  const UserA
+matchUserId :: State -> String -> Maybe UserId
+matchUserId state uname
+  | (userA >>> username >>> toString) state == uname = Just UserA
+  | (userB >>> username >>> toString) state == uname = Just UserB
+  | otherwise = Nothing
 
 sendMessage :: String -> IO ()
 sendMessage message =
@@ -63,7 +88,9 @@ processMessage :: State -> Message -> IO (State)
 processMessage state (Message userId text) =
   let
     currentConversation =
-      Map.lookup userId (conversations state)
+      case userId of
+              UserA -> (userA >>> conversation) state
+              UserB -> (userB >>> conversation) state
 
     (updatedConversation, effects) =
       case currentConversation of
@@ -73,15 +100,17 @@ processMessage state (Message userId text) =
         Just conversation ->
           advance conversation text
 
-    updatedConversations =
-      Map.alter (const updatedConversation) userId (conversations state)
+    updatedState =
+      case userId of
+        UserA -> state { userA = (userA state) { conversation = updatedConversation }}
+        UserB -> state { userB = (userB state) { conversation = updatedConversation }}
   in
     do
       _ <- sequence (Prelude.map (runEffect state userId) effects)
-      return $ state { conversations = updatedConversations }
+      return updatedState
 
 runEffect :: State -> UserId -> Effect -> IO ()
-runEffect state currentUser effect =
+runEffect state currentUserId effect =
   case effect of
     Ask question ->
       sendMessage (questionText question)
@@ -90,8 +119,13 @@ runEffect state currentUser effect =
       sendMessage (apologizing $ questionText question)
 
     StoreAndConfirm expense ->
-      do
-        createExpense (currentConnection state) currentUser expense
+      let
+        (currentUsername, otherUsername) =
+          case currentUserId of
+            UserA -> ((userA >>> username) state, (userB >>> username) state)
+            UserB -> ((userB >>> username) state, (userA >>> username) state)
+      in do
+        createExpense (currentConnection state) currentUsername otherUsername expense
         sendMessage "Done!"
 
 apologizing :: String -> String
@@ -110,22 +144,17 @@ questionText question =
     AskHowToSplit ->
       "How will you split it?"
 
-createExpense :: Connection -> UserId -> Expense -> IO ()
-createExpense conn currentUser expense =
+createExpense :: Connection -> Username -> Username -> Expense -> IO ()
+createExpense conn currentUser otherUser expense =
   let
-    otherUser userId =
-      case userId of
-        UserA -> UserB
-        UserB -> UserA
-
     split = expenseSplit expense
 
     (payer, buddy) =
       case expensePayer expense of
         Me ->
-          (currentUser, otherUser currentUser)
+          (currentUser, otherUser)
         They ->
-          (otherUser currentUser, currentUser)
+          (otherUser, currentUser)
 
     (payerShare, budyShare) =
       case expensePayer expense of
@@ -138,8 +167,8 @@ createExpense conn currentUser expense =
     do
       _ <- execute conn
             "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-            ( show $ payer
-            , show $ buddy
+            ( toString $ payer
+            , toString $ buddy
             , payerShare
             , budyShare
             , value $ expenseAmount expense
