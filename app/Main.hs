@@ -9,6 +9,7 @@ import Migrations (migrateDB)
 import Conversation
 import qualified Telegram
 import Control.Arrow ((>>>))
+import Network.HTTP.Client.TLS (newTlsManager)
 
 data State =
   State
@@ -37,6 +38,7 @@ main = do
   userB <- getEnv "USER_B"
   url <- getEnv "DB_URL"
   telegramToken <- getEnv "TELEGRAM_TOKEN"
+  manager <- newTlsManager
   conn <- connectPostgreSQL (pack url)
   migrateDB conn
   runServer $
@@ -44,7 +46,7 @@ main = do
       { currentConnection = conn
       , userA = UserState (Username userA) (Username userB) Nothing
       , userB = UserState (Username userB) (Username userA) Nothing
-      , telegramState = Telegram.init telegramToken
+      , telegramState = Telegram.init telegramToken manager
       }
 
 runServer :: State -> IO ()

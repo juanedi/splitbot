@@ -1,7 +1,6 @@
 module Telegram where
 
-import Network.HTTP.Client (Request, httpLbs, parseRequest, responseBody, method, responseStatus, setQueryString)
-import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Client (Request, Manager, httpLbs, parseRequest, responseBody, method, responseStatus, setQueryString)
 import Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api
 import Data.Aeson (eitherDecode)
@@ -12,15 +11,15 @@ import qualified Data.ByteString.Char8 as ByteString
 data State =
   State
     { token :: Token
+    , manager :: Manager
     , fetchState :: FetchState
-    } deriving Show
+    }
 
 type Token = String
 
 data FetchState
   = Buffered Telegram.Api.Update [Telegram.Api.Update]
   | NeedMore (Maybe Int)
-    deriving Show
 
 data Message =
   Message
@@ -31,10 +30,11 @@ data Message =
 
 data ChatId = ChatId Integer deriving Show
 
-init :: Token -> State
-init token =
+init :: Token -> Manager -> State
+init token manager =
   State
     { token = token
+    , manager = manager
     , fetchState = NeedMore Nothing
     }
 
@@ -54,7 +54,7 @@ getMessage state =
 
     NeedMore lastUpdateId ->
       do
-        response <- requestUpdates (token state) lastUpdateId
+        response <- requestUpdates (token state) (manager state) lastUpdateId
         case Telegram.Api.result response of
           u : us ->
             getMessage $ state { fetchState = Buffered u us }
@@ -77,11 +77,9 @@ toMessage update =
     , text = Telegram.Api.text message
     }
 
-requestUpdates :: Token -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
-requestUpdates token lastUpdateId =
+requestUpdates :: Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
+requestUpdates token manager lastUpdateId =
   do
-    -- TODO: create the manager once and store it
-    manager <- newTlsManager
     request <- newUpdateRequest token lastUpdateId
     response <- httpLbs request manager
     case (responseStatus >>> statusCode) response of
@@ -90,13 +88,13 @@ requestUpdates token lastUpdateId =
           Left err -> do
             putStrLn "Decoding error! Skipping message"
             putStrLn err
-            requestUpdates token ((+1) <$> lastUpdateId)
+            requestUpdates token manager ((+1) <$> lastUpdateId)
           Right update ->
             return update
       _ ->
         do
           putStrLn "Error contacting telegram for updates. Will retry soon."
-          requestUpdates token lastUpdateId
+          requestUpdates token manager lastUpdateId
 
 newUpdateRequest :: Token -> Maybe Int -> IO Request
 newUpdateRequest token lastUpdateId =
@@ -127,10 +125,8 @@ apiUrl token apiMethod =
 sendMessage :: State -> ChatId -> String -> IO ()
 sendMessage state chatId text =
   do
-    -- TODO: create the manager once and store it
-    manager <- newTlsManager
     request <- newSendRequest (token state) chatId text
-    response <- httpLbs request manager
+    response <- httpLbs request (manager state)
     case (responseStatus >>> statusCode) response of
       200 ->
         return ()
