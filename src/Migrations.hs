@@ -7,7 +7,5 @@ migrateDB :: Connection -> IO ()
 migrateDB conn = do
   withTransaction conn $
     runMigrations True conn $
-      [ MigrationInitialization
-      , (MigrationDirectory "./db/migrate/")
-      ]
+    [MigrationInitialization, (MigrationDirectory "./db/migrate/")]
   return ()
