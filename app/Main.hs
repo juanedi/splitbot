@@ -15,7 +15,7 @@ data State = State
   { currentConnection :: Connection
   , userA :: UserState
   , userB :: UserState
-  , telegramState :: Telegram.State
+  , telegram :: Telegram.State
   }
 
 data UserId
@@ -43,7 +43,7 @@ main = do
       { currentConnection = conn
       , userA = UserState (Telegram.Username userA) (Telegram.Username userB) Nothing
       , userB = UserState (Telegram.Username userB) (Telegram.Username userA) Nothing
-      , telegramState = Telegram.init telegramToken manager
+      , telegram = Telegram.init telegramToken manager
       }
 
 runServer :: State -> IO ()
@@ -59,9 +59,9 @@ runServer state = do
 
 getMessage :: State -> IO (Telegram.Message, State)
 getMessage state = do
-  (message, updatedState) <- Telegram.getMessage (telegramState state)
+  (message, newTelegramState) <- (telegram >>> Telegram.getMessage) (state)
   putStrLn $ "<< " ++ (Telegram.text message)
-  return $ (message, state {telegramState = updatedState})
+  return $ (message, state {telegram = newTelegramState})
 
 matchUserId :: State -> Telegram.Username -> Maybe UserId
 matchUserId state uname
@@ -102,14 +102,14 @@ runEffects state userState chatId effects = do
 runEffect :: State -> UserState -> Telegram.ChatId -> Effect -> IO ()
 runEffect state userState chatId effect =
   let conn = currentConnection state
-      telegram = telegramState state
+      telegramState = telegram state
    in case effect of
-        Ask question -> sendMessage telegram chatId (questionText question)
+        Ask question -> sendMessage telegramState chatId (questionText question)
         ApologizeAndAsk question ->
-          sendMessage telegram chatId (apologizing $ questionText question)
+          sendMessage telegramState chatId (apologizing $ questionText question)
         StoreAndConfirm expense -> do
           createExpense conn (username userState) (buddy userState) expense
-          sendMessage telegram chatId "Done!"
+          sendMessage telegramState chatId "Done!"
 
 sendMessage :: Telegram.State -> Telegram.ChatId -> String -> IO ()
 sendMessage telegram chatId text = do
