@@ -25,6 +25,7 @@ dependencies:
 - containers
 - postgresql-simple
 - postgresql-simple-migration
+- http-types
 - http-client
 - http-client-tls
 - aeson

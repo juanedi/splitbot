@@ -2,6 +2,7 @@ module Telegram where
 
 import Network.HTTP.Client (Request, httpLbs, parseRequest, responseBody, method, responseStatus, setQueryString)
 import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api
 import Data.Aeson (eitherDecode)
 import Control.Concurrent (threadDelay)
@@ -83,13 +84,19 @@ requestUpdates token lastUpdateId =
     manager <- newTlsManager
     request <- newUpdateRequest token lastUpdateId
     response <- httpLbs request manager
-    case eitherDecode (responseBody response) of
-      Left err -> do
-        putStrLn "Decoding error! Skipping message"
-        putStrLn err
-        requestUpdates token lastUpdateId -- TODO: check this
-      Right update ->
-        return update
+    case (responseStatus >>> statusCode) response of
+      200 ->
+        case eitherDecode (responseBody response) of
+          Left err -> do
+            putStrLn "Decoding error! Skipping message"
+            putStrLn err
+            requestUpdates token ((+1) <$> lastUpdateId)
+          Right update ->
+            return update
+      _ ->
+        do
+          putStrLn "Error contacting telegram for updates. Will retry soon."
+          requestUpdates token lastUpdateId
 
 newUpdateRequest :: Token -> Maybe Int -> IO Request
 newUpdateRequest token lastUpdateId =
@@ -117,28 +124,20 @@ apiUrl token apiMethod =
       , apiMethod
       ]
 
-queryString :: [(String, Maybe String)] -> String
-queryString =
-  -- TODO: use a buffered string representation
-  -- TODO: assuming values are already URL encoded
-  foldl
-  (\query (name, value) ->
-     case value of
-       Nothing -> query
-       Just v  -> concat [query, "&", name, "=", v ]
-     )
-  "?"
-
-
 sendMessage :: State -> ChatId -> String -> IO ()
 sendMessage state chatId text =
   do
     -- TODO: create the manager once and store it
-    -- TODO: error handling
     manager <- newTlsManager
     request <- newSendRequest (token state) chatId text
-    _ <- httpLbs request manager
-    return ()
+    response <- httpLbs request manager
+    case (responseStatus >>> statusCode) response of
+      200 ->
+        return ()
+      _ ->
+        do
+          putStrLn "Error sending message"
+          return ()
 
 newSendRequest :: Token -> ChatId -> String -> IO Request
 newSendRequest token (ChatId chatId) text =
