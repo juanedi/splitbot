@@ -25,6 +25,15 @@ data State = State
 
 type Token = String
 
+data Username =
+  Username String
+
+instance Eq Username where
+  (==) (Username a) (Username b) = a == b
+
+instance Show Username where
+  show (Username a) = a
+
 data FetchState
   = Buffered Telegram.Api.Update
              [Telegram.Api.Update]
@@ -32,17 +41,16 @@ data FetchState
 
 data Message = Message
   { chatId :: ChatId
-  , username :: String
+  , username :: Username
   , text :: String
-  } deriving (Show)
+  }
 
 data ChatId =
   ChatId Integer
   deriving (Show)
 
 init :: Token -> Manager -> State
-init token manager =
-  State {token = token, manager = manager, fetchState = NeedMore Nothing}
+init token manager = State {token = token, manager = manager, fetchState = NeedMore Nothing}
 
 getMessage :: State -> IO (Message, State)
 getMessage state =
@@ -52,11 +60,7 @@ getMessage state =
         ( toMessage nextUpdate
         , case rest of
             u:us -> state {fetchState = Buffered u us}
-            [] ->
-              state
-                { fetchState =
-                    NeedMore $ Just $ Telegram.Api.updateId nextUpdate
-                })
+            [] -> state {fetchState = NeedMore $ Just $ Telegram.Api.updateId nextUpdate})
     NeedMore lastUpdateId -> do
       response <- requestUpdates (token state) (manager state) lastUpdateId
       case Telegram.Api.result response of
@@ -71,13 +75,12 @@ toMessage update =
   let message = Telegram.Api.message update
       user = Telegram.Api.from message
    in Message
-        { chatId = ChatId $ Telegram.Api.id user
-        , username = Telegram.Api.username user
+        { chatId = ChatId (Telegram.Api.id user)
+        , username = Username (Telegram.Api.username user)
         , text = Telegram.Api.text message
         }
 
-requestUpdates ::
-     Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
+requestUpdates :: Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
 requestUpdates token manager lastUpdateId = do
   request <- newUpdateRequest token lastUpdateId
   response <- httpLbs request manager
@@ -106,8 +109,7 @@ newUpdateRequest token lastUpdateId =
    in setParams <$> parseRequest url
 
 apiUrl :: Token -> String -> String
-apiUrl token apiMethod =
-  concat ["https://api.telegram.org/bot", token, "/", apiMethod]
+apiUrl token apiMethod = concat ["https://api.telegram.org/bot", token, "/", apiMethod]
 
 sendMessage :: State -> ChatId -> String -> IO ()
 sendMessage state chatId text = do
@@ -127,7 +129,5 @@ newSendRequest token (ChatId chatId) text =
       -- TODO: use ByteString where applicable
        =
         setQueryString
-          [ ("chat_id", Just (ByteString.pack (show chatId)))
-          , ("text", Just (ByteString.pack text))
-          ]
+          [("chat_id", Just (ByteString.pack (show chatId))), ("text", Just (ByteString.pack text))]
    in setParams <$> initRequest url

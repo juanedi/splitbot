@@ -18,18 +18,14 @@ data State = State
   , telegramState :: Telegram.State
   }
 
-data Username = Username
-  { toString :: String
-  }
-
 data UserId
   = UserA
   | UserB
   deriving (Show)
 
 data UserState = UserState
-  { username :: Username
-  , buddy :: Username
+  { username :: Telegram.Username
+  , buddy :: Telegram.Username
   , conversation :: Maybe Conversation
   }
 
@@ -45,8 +41,8 @@ main = do
   runServer $
     State
       { currentConnection = conn
-      , userA = UserState (Username userA) (Username userB) Nothing
-      , userB = UserState (Username userB) (Username userA) Nothing
+      , userA = UserState (Telegram.Username userA) (Telegram.Username userB) Nothing
+      , userB = UserState (Telegram.Username userB) (Telegram.Username userA) Nothing
       , telegramState = Telegram.init telegramToken manager
       }
 
@@ -57,28 +53,27 @@ runServer state = do
   let maybeUserId = matchUserId state username
   case maybeUserId of
     Nothing -> do
-      putStrLn $ "Ignoring message from unknown user" ++ username
+      putStrLn $ "Ignoring message from unknown user" ++ show username
       runServer newState
     Just userId -> processMessage newState userId message >>= runServer
 
 getMessage :: State -> IO (Telegram.Message, State)
 getMessage state = do
   (message, updatedState) <- Telegram.getMessage (telegramState state)
-  putStrLn $ "<< " ++ (show message)
+  putStrLn $ "<< " ++ (Telegram.text message)
   return $ (message, state {telegramState = updatedState})
 
-matchUserId :: State -> String -> Maybe UserId
+matchUserId :: State -> Telegram.Username -> Maybe UserId
 matchUserId state uname
-  | (userA >>> username >>> toString) state == uname = Just UserA
-  | (userB >>> username >>> toString) state == uname = Just UserB
+  | (userA >>> username) state == uname = Just UserA
+  | (userB >>> username) state == uname = Just UserB
   | otherwise = Nothing
 
 processMessage :: State -> UserId -> Telegram.Message -> IO (State)
 processMessage state userId message =
   let currentUserState = getUserState userId state
       (updatedConversation, effects) =
-        (conversation >>>
-         fmap (advance $ Telegram.text message) >>> fromMaybe start)
+        (conversation >>> fmap (advance $ Telegram.text message) >>> fromMaybe start)
           currentUserState
       userState = currentUserState {conversation = updatedConversation}
       updatedState = setUserState userId userState state
@@ -131,7 +126,7 @@ questionText question =
     AskWhoPaid -> "Who paid?"
     AskHowToSplit -> "How will you split it?"
 
-createExpense :: Connection -> Username -> Username -> Expense -> IO ()
+createExpense :: Connection -> Telegram.Username -> Telegram.Username -> Expense -> IO ()
 createExpense conn currentUser otherUser expense =
   let split = expenseSplit expense
       (payer, buddy) =
@@ -146,9 +141,5 @@ createExpense conn currentUser otherUser expense =
            execute
              conn
              "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-             ( toString $ payer
-             , toString $ buddy
-             , payerShare
-             , budyShare
-             , value $ expenseAmount expense)
+             (show payer, show buddy, payerShare, budyShare, value $ expenseAmount expense)
          return ()
