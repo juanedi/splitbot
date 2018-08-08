@@ -8,7 +8,8 @@ import Data.Traversable (sequence)
 import Database.PostgreSQL.Simple
 import Migrations (migrateDB)
 import Network.HTTP.Client.TLS (newTlsManager)
-import System.Environment (getEnv)
+import qualified Settings
+import Storage (createExpense)
 import qualified Telegram
 
 data State = State
@@ -31,19 +32,18 @@ data UserState = UserState
 
 main :: IO ()
 main = do
-  userA <- getEnv "USER_A"
-  userB <- getEnv "USER_B"
-  url <- getEnv "DB_URL"
-  telegramToken <- getEnv "TELEGRAM_TOKEN"
+  settings <- Settings.fromEnv
   manager <- newTlsManager
-  conn <- connectPostgreSQL (pack url)
+  conn <- connectPostgreSQL (pack (Settings.databaseUrl settings))
+  let userA = (Telegram.Username . Settings.userA) settings
+  let userB = (Telegram.Username . Settings.userB) settings
   migrateDB conn
   runServer $
     State
       { currentConnection = conn
-      , userA = UserState (Telegram.Username userA) (Telegram.Username userB) Nothing
-      , userB = UserState (Telegram.Username userB) (Telegram.Username userA) Nothing
-      , telegram = Telegram.init telegramToken manager
+      , userA = UserState userA userB Nothing
+      , userB = UserState userB userA Nothing
+      , telegram = Telegram.init (Settings.telegramToken settings) manager
       }
 
 runServer :: State -> IO ()
@@ -125,21 +125,3 @@ questionText question =
     AskAmount -> "How much?"
     AskWhoPaid -> "Who paid?"
     AskHowToSplit -> "How will you split it?"
-
-createExpense :: Connection -> Telegram.Username -> Telegram.Username -> Expense -> IO ()
-createExpense conn currentUser otherUser expense =
-  let split = expenseSplit expense
-      (payer, buddy) =
-        case expensePayer expense of
-          Me -> (currentUser, otherUser)
-          They -> (otherUser, currentUser)
-      (payerShare, budyShare) =
-        case expensePayer expense of
-          Me -> (myPart split, theirPart split)
-          They -> (theirPart split, myPart split)
-   in do _ <-
-           execute
-             conn
-             "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-             (show payer, show buddy, payerShare, budyShare, value $ expenseAmount expense)
-         return ()
