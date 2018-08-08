@@ -5,7 +5,8 @@ import Database.PostgreSQL.Simple.Migration
 
 migrateDB :: Connection -> IO ()
 migrateDB conn = do
-  withTransaction conn $
+  _ <-
+    withTransaction conn $
     runMigrations True conn $
     [MigrationInitialization, (MigrationDirectory "./db/migrate/")]
   return ()
