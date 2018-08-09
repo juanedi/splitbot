@@ -55,7 +55,8 @@ data ChatId =
   deriving (Show)
 
 init :: Token -> Manager -> State
-init token manager = State {token = token, manager = manager, fetchState = NeedMore Nothing}
+init token manager =
+  State {token = token, manager = manager, fetchState = NeedMore Nothing}
 
 getMessage :: State -> IO (Message, State)
 getMessage state =
@@ -65,7 +66,11 @@ getMessage state =
         ( toMessage nextUpdate
         , case rest of
             u:us -> state {fetchState = Buffered u us}
-            [] -> state {fetchState = NeedMore $ Just $ Telegram.Api.updateId nextUpdate})
+            [] ->
+              state
+                { fetchState =
+                    NeedMore $ Just $ Telegram.Api.updateId nextUpdate
+                })
     NeedMore lastUpdateId -> do
       response <- requestUpdates (token state) (manager state) lastUpdateId
       case Telegram.Api.result response of
@@ -85,7 +90,8 @@ toMessage update =
         , text = Telegram.Api.text message
         }
 
-requestUpdates :: Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
+requestUpdates ::
+     Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
 requestUpdates token manager lastUpdateId = do
   request <- newUpdateRequest token lastUpdateId
   response <- httpLbs request manager
@@ -114,7 +120,8 @@ newUpdateRequest token lastUpdateId =
    in setParams <$> parseRequest url
 
 apiUrl :: Token -> String -> String
-apiUrl token apiMethod = concat ["https://api.telegram.org/bot", token, "/", apiMethod]
+apiUrl token apiMethod =
+  concat ["https://api.telegram.org/bot", token, "/", apiMethod]
 
 sendMessage :: State -> ChatId -> String -> IO ()
 sendMessage state chatId text = do

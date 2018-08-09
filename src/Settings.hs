@@ -14,4 +14,5 @@ data Settings = Settings
 
 fromEnv :: IO (Settings)
 fromEnv =
-  Settings <$> getEnv "USER_A" <*> getEnv "USER_B" <*> getEnv "DB_URL" <*> getEnv "TELEGRAM_TOKEN"
+  Settings <$> getEnv "USER_A" <*> getEnv "USER_B" <*> getEnv "DB_URL" <*>
+  getEnv "TELEGRAM_TOKEN"

@@ -15,7 +15,9 @@ data Update = Update
   } deriving (Show)
 
 instance FromJSON Update where
-  parseJSON = withObject "result" $ \o -> Update <$> (o .: "update_id") <*> (o .: "message")
+  parseJSON =
+    withObject "result" $ \o ->
+      Update <$> (o .: "update_id") <*> (o .: "message")
 
 data Message = Message
   { text :: String
@@ -23,7 +25,8 @@ data Message = Message
   } deriving (Show)
 
 instance FromJSON Message where
-  parseJSON = withObject "message" $ \o -> Message <$> o .: "text" <*> o .: "from"
+  parseJSON =
+    withObject "message" $ \o -> Message <$> o .: "text" <*> o .: "from"
 
 data User = User
   { id :: Integer
@@ -31,4 +34,5 @@ data User = User
   } deriving (Show)
 
 instance FromJSON User where
-  parseJSON = withObject "user" $ \o -> User <$> (o .: "id") <*> (o .: "username")
+  parseJSON =
+    withObject "user" $ \o -> User <$> (o .: "id") <*> (o .: "username")

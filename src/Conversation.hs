@@ -56,18 +56,25 @@ advance userMessage conversation =
   case conversation of
     AwaitingAmount ->
       case readAmount userMessage of
-        Just amount -> (Just $ AwaitingPayer {amount = amount}, [Reply askWhoPaid])
+        Just amount ->
+          (Just $ AwaitingPayer {amount = amount}, [Reply askWhoPaid])
         Nothing -> (Just conversation, [Reply $ apologizing askAmount])
     AwaitingPayer amount ->
       case readPayer userMessage of
-        Just payer -> (Just $ AwaitingSplit {amount = amount, payer = payer}, [Reply askHowToSplit])
+        Just payer ->
+          ( Just $ AwaitingSplit {amount = amount, payer = payer}
+          , [Reply askHowToSplit])
         Nothing -> (Just conversation, [Reply $ apologizing askWhoPaid])
     AwaitingSplit payer amount ->
       case readSplit userMessage of
         Just split ->
           ( Nothing
           , [ StoreAndReply
-                (Expense {expensePayer = payer, expenseAmount = amount, expenseSplit = split})
+                (Expense
+                   { expensePayer = payer
+                   , expenseAmount = amount
+                   , expenseSplit = split
+                   })
                 done
             ])
         Nothing -> (Just conversation, [Reply $ apologizing askHowToSplit])
