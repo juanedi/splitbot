@@ -2,20 +2,25 @@ module Telegram where
 
 import Control.Arrow ((>>>))
 import Control.Concurrent (threadDelay)
-import Data.Aeson (eitherDecode)
+import Data.Aeson (eitherDecode, encode)
 import qualified Data.ByteString.Char8 as ByteString
 import Network.HTTP.Client
   ( Manager
   , Request
+  , RequestBody(..)
   , httpLbs
   , method
   , parseRequest
+  , parseRequest_
+  , requestBody
+  , requestHeaders
   , responseBody
   , responseStatus
   , setQueryString
   )
 import Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api
+import qualified Telegram.Api.SendMessage as SendMessage
 
 data State = State
   { token :: Token
@@ -124,10 +129,10 @@ sendMessage state chatId text = do
 newSendRequest :: Token -> ChatId -> String -> IO Request
 newSendRequest token (ChatId chatId) text =
   let url = apiUrl token "sendMessage"
-      initRequest url = fmap (\r -> r {method = "POST"}) (parseRequest url)
-      setParams
-      -- TODO: use ByteString where applicable
-       =
-        setQueryString
-          [("chat_id", Just (ByteString.pack (show chatId))), ("text", Just (ByteString.pack text))]
-   in setParams <$> initRequest url
+      message = SendMessage.Message chatId text Nothing
+   in return $
+      (parseRequest_ url)
+        { method = "POST"
+        , requestHeaders = [("Content-Type", "application/json")]
+        , requestBody = RequestBodyLBS (encode message)
+        }
