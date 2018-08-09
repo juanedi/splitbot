@@ -12,6 +12,7 @@ module Conversation
 
 import Conversation.Replies
 import Data.Char (toLower)
+import Telegram (Reply)
 import Text.Read (readMaybe)
 
 data Conversation

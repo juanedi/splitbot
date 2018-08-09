@@ -50,6 +50,14 @@ data Message = Message
   , text :: String
   }
 
+data Reply =
+  Reply String
+        ReplyKeyboard
+
+data ReplyKeyboard
+  = Normal
+  | Options [String]
+
 data ChatId =
   ChatId Integer
   deriving (Show)
@@ -120,9 +128,9 @@ apiUrl :: Token -> String -> String
 apiUrl token apiMethod =
   concat ["https://api.telegram.org/bot", token, "/", apiMethod]
 
-sendMessage :: State -> ChatId -> String -> Maybe [String] -> IO ()
-sendMessage state chatId text options = do
-  request <- newSendRequest (token state) chatId text options
+sendMessage :: State -> ChatId -> Reply -> IO ()
+sendMessage state chatId reply = do
+  request <- newSendRequest (token state) chatId reply
   response <- httpLbs request (manager state)
   case (responseStatus >>> statusCode) response of
     200 -> return ()
@@ -130,18 +138,18 @@ sendMessage state chatId text options = do
       putStrLn "Error sending message"
       return ()
 
-newSendRequest :: Token -> ChatId -> String -> Maybe [String] -> IO Request
-newSendRequest token (ChatId chatId) text options =
+newSendRequest :: Token -> ChatId -> Reply -> IO Request
+newSendRequest token (ChatId chatId) (Reply text keyboard) =
   let url = apiUrl token "sendMessage"
-      keyboard =
-        case options of
-          Nothing -> SendMessage.ReplyKeyboardRemove
-          Just opts ->
+      markup =
+        case keyboard of
+          Normal -> SendMessage.ReplyKeyboardRemove
+          Options opts ->
             SendMessage.InlineKeyboard
               (map (\o -> [o]) opts) -- display options as a column
               False
               True
-      message = SendMessage.Message chatId text keyboard
+      message = SendMessage.Message chatId text markup
    in return $
       (parseRequest_ url)
         { method = "POST"

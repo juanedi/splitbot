@@ -2,7 +2,6 @@ module Main where
 
 import Control.Arrow ((>>>))
 import Conversation
-import qualified Conversation.Replies as Replies
 import Data.ByteString.Char8 (pack)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
@@ -99,12 +98,10 @@ runEffect state userState chatId effect =
           createExpense conn (username userState) (buddy userState) expense
           sendMessage telegramState chatId reply
 
-sendMessage :: Telegram.State -> Telegram.ChatId -> Replies.Reply -> IO ()
-sendMessage telegram chatId reply =
-  let text = (Replies.text reply)
-      options = (Replies.options reply)
-   in do putStrLn $ ">> " ++ (Replies.text reply)
-         Telegram.sendMessage telegram chatId text options
+sendMessage :: Telegram.State -> Telegram.ChatId -> Telegram.Reply -> IO ()
+sendMessage telegram chatId reply@(Telegram.Reply text _) = do
+  putStrLn $ ">> " ++ text
+  Telegram.sendMessage telegram chatId reply
 
 getUserState :: UserId -> State -> UserState
 getUserState userId =

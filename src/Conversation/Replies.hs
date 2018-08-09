@@ -1,22 +1,21 @@
 module Conversation.Replies where
 
-data Reply = Reply
-  { text :: String
-  , options :: Maybe [String]
-  }
+import Telegram (Reply(..), ReplyKeyboard(..))
 
 askAmount :: Reply
-askAmount = Reply "How much?" Nothing
+askAmount = Reply "How much?" Normal
 
 askWhoPaid :: Reply
-askWhoPaid = Reply "Who paid?" (Just ["Me", "Them"])
+askWhoPaid = Reply "Who paid?" (Options ["Me", "Them"])
 
 askHowToSplit :: Reply
 askHowToSplit =
-  Reply "How will you split it?" (Just ["Evenly", "All on me", "All on them"])
+  Reply
+    "How will you split it?"
+    (Options ["Evenly", "All on me", "All on them"])
 
 done :: Reply
-done = Reply "Done!" Nothing
+done = Reply "Done!" Normal
 
 apologizing :: Reply -> Reply
 apologizing (Reply text options) =
