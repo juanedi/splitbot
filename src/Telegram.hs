@@ -19,7 +19,7 @@ import Network.HTTP.Client
   , setQueryString
   )
 import Network.HTTP.Types.Status (statusCode)
-import qualified Telegram.Api
+import qualified Telegram.Api.GetUpdates as GetUpdates
 import qualified Telegram.Api.SendMessage as SendMessage
 
 data State = State
@@ -40,8 +40,8 @@ instance Show Username where
   show (Username a) = a
 
 data FetchState
-  = Buffered Telegram.Api.Update
-             [Telegram.Api.Update]
+  = Buffered GetUpdates.Update
+             [GetUpdates.Update]
   | NeedMore (Maybe Int)
 
 data Message = Message
@@ -68,30 +68,28 @@ getMessage state =
             u:us -> state {fetchState = Buffered u us}
             [] ->
               state
-                { fetchState =
-                    NeedMore $ Just $ Telegram.Api.updateId nextUpdate
-                })
+                {fetchState = NeedMore $ Just $ GetUpdates.updateId nextUpdate})
     NeedMore lastUpdateId -> do
       response <- requestUpdates (token state) (manager state) lastUpdateId
-      case Telegram.Api.result response of
+      case GetUpdates.result response of
         u:us -> getMessage $ state {fetchState = Buffered u us}
         [] -> do
           putStrLn "No updates found! Will retry in a bit"
           threadDelay (1 * 1000 * 1000)
           getMessage state
 
-toMessage :: Telegram.Api.Update -> Message
+toMessage :: GetUpdates.Update -> Message
 toMessage update =
-  let message = Telegram.Api.message update
-      user = Telegram.Api.from message
+  let message = GetUpdates.message update
+      user = GetUpdates.from message
    in Message
-        { chatId = ChatId (Telegram.Api.id user)
-        , username = Username (Telegram.Api.username user)
-        , text = Telegram.Api.text message
+        { chatId = ChatId (GetUpdates.id user)
+        , username = Username (GetUpdates.username user)
+        , text = GetUpdates.text message
         }
 
 requestUpdates ::
-     Token -> Manager -> Maybe Int -> IO (Telegram.Api.UpdateResponse)
+     Token -> Manager -> Maybe Int -> IO (GetUpdates.UpdateResponse)
 requestUpdates token manager lastUpdateId = do
   request <- newUpdateRequest token lastUpdateId
   response <- httpLbs request manager
@@ -110,14 +108,13 @@ requestUpdates token manager lastUpdateId = do
 newUpdateRequest :: Token -> Maybe Int -> IO Request
 newUpdateRequest token lastUpdateId =
   let url = apiUrl token "getUpdates"
-      setParams =
-        setQueryString
-          [ ("timeout", Just "10")
-          , ("limit", Just "30")
-          , ("allowed_updates", Just "%5B%22message%22%5D")
-          , ("offset", ((+ 1) >>> show >>> ByteString.pack) <$> lastUpdateId)
-          ]
-   in setParams <$> parseRequest url
+   in setQueryString
+        [ ("timeout", Just "10")
+        , ("limit", Just "30")
+        , ("allowed_updates", Just "%5B%22message%22%5D")
+        , ("offset", ((+ 1) >>> show >>> ByteString.pack) <$> lastUpdateId)
+        ] <$>
+      parseRequest url
 
 apiUrl :: Token -> String -> String
 apiUrl token apiMethod =

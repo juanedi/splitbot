@@ -1,9 +1,9 @@
-module Telegram.Api where
+module Telegram.Api.GetUpdates where
 
 import Data.Aeson (FromJSON, (.:), parseJSON, withObject)
 
 data UpdateResponse = UpdateResponse
-  { result :: [Telegram.Api.Update]
+  { result :: [Update]
   } deriving (Show)
 
 instance FromJSON UpdateResponse where
