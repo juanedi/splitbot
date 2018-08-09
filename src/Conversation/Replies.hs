@@ -1,16 +1,23 @@
 module Conversation.Replies where
 
-askAmount :: String
-askAmount = "How much?"
+data Reply = Reply
+  { text :: String
+  , options :: Maybe [String]
+  }
 
-askWhoPaid :: String
-askWhoPaid = "Who paid?"
+askAmount :: Reply
+askAmount = Reply "How much?" Nothing
 
-askHowToSplit :: String
-askHowToSplit = "How will you split it?"
+askWhoPaid :: Reply
+askWhoPaid = Reply "Who paid?" (Just ["Me", "Them"])
 
-apologizing :: String -> String
-apologizing message = "Sorry, I couldn't understand that. " ++ message
+askHowToSplit :: Reply
+askHowToSplit =
+  Reply "How will you split it?" (Just ["Evenly", "All on me", "All on them"])
 
-done :: String
-done = "Done!"
+done :: Reply
+done = Reply "Done!" Nothing
+
+apologizing :: Reply -> Reply
+apologizing (Reply text options) =
+  Reply ("Sorry, I couldn't understand that. " ++ text) options

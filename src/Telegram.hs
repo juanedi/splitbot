@@ -123,9 +123,9 @@ apiUrl :: Token -> String -> String
 apiUrl token apiMethod =
   concat ["https://api.telegram.org/bot", token, "/", apiMethod]
 
-sendMessage :: State -> ChatId -> String -> IO ()
-sendMessage state chatId text = do
-  request <- newSendRequest (token state) chatId text
+sendMessage :: State -> ChatId -> String -> Maybe [String] -> IO ()
+sendMessage state chatId text options = do
+  request <- newSendRequest (token state) chatId text options
   response <- httpLbs request (manager state)
   case (responseStatus >>> statusCode) response of
     200 -> return ()
@@ -133,10 +133,18 @@ sendMessage state chatId text = do
       putStrLn "Error sending message"
       return ()
 
-newSendRequest :: Token -> ChatId -> String -> IO Request
-newSendRequest token (ChatId chatId) text =
+newSendRequest :: Token -> ChatId -> String -> Maybe [String] -> IO Request
+newSendRequest token (ChatId chatId) text options =
   let url = apiUrl token "sendMessage"
-      message = SendMessage.Message chatId text Nothing
+      keyboard =
+        case options of
+          Nothing -> SendMessage.ReplyKeyboardRemove
+          Just opts ->
+            SendMessage.InlineKeyboard
+              (map (\o -> [o]) opts) -- display options as a column
+              False
+              True
+      message = SendMessage.Message chatId text keyboard
    in return $
       (parseRequest_ url)
         { method = "POST"

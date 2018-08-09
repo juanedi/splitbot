@@ -2,6 +2,7 @@ module Main where
 
 import Control.Arrow ((>>>))
 import Conversation
+import qualified Conversation.Replies as Replies
 import Data.ByteString.Char8 (pack)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
@@ -73,7 +74,8 @@ processMessage :: State -> UserId -> Telegram.Message -> IO (State)
 processMessage state userId message =
   let currentUserState = getUserState userId state
       (updatedConversation, effects) =
-        (conversation >>> fmap (advance $ Telegram.text message) >>> fromMaybe start)
+        (conversation >>>
+         fmap (advance $ Telegram.text message) >>> fromMaybe start)
           currentUserState
       userState = currentUserState {conversation = updatedConversation}
       updatedState = setUserState userId userState state
@@ -92,15 +94,17 @@ runEffect state userState chatId effect =
   let conn = currentConnection state
       telegramState = telegram state
    in case effect of
-        Reply text -> sendMessage telegramState chatId text
-        StoreAndReply expense text -> do
+        Answer reply -> sendMessage telegramState chatId reply
+        StoreAndReply expense reply -> do
           createExpense conn (username userState) (buddy userState) expense
-          sendMessage telegramState chatId text
+          sendMessage telegramState chatId reply
 
-sendMessage :: Telegram.State -> Telegram.ChatId -> String -> IO ()
-sendMessage telegram chatId text = do
-  putStrLn $ ">> " ++ text
-  Telegram.sendMessage telegram chatId text
+sendMessage :: Telegram.State -> Telegram.ChatId -> Replies.Reply -> IO ()
+sendMessage telegram chatId reply =
+  let text = (Replies.text reply)
+      options = (Replies.options reply)
+   in do putStrLn $ ">> " ++ (Replies.text reply)
+         Telegram.sendMessage telegram chatId text options
 
 getUserState :: UserId -> State -> UserState
 getUserState userId =
