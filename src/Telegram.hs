@@ -3,20 +3,17 @@ module Telegram where
 import Control.Arrow ((>>>))
 import Control.Concurrent (threadDelay)
 import Data.Aeson (eitherDecode, encode)
-import qualified Data.ByteString.Char8 as ByteString
 import Network.HTTP.Client
   ( Manager
   , Request
   , RequestBody(..)
   , httpLbs
   , method
-  , parseRequest
   , parseRequest_
   , requestBody
   , requestHeaders
   , responseBody
   , responseStatus
-  , setQueryString
   )
 import Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api.GetUpdates as GetUpdates
@@ -115,14 +112,20 @@ requestUpdates token manager lastUpdateId = do
 
 newUpdateRequest :: Token -> Maybe Int -> IO Request
 newUpdateRequest token lastUpdateId =
-  let url = apiUrl token "getUpdates"
-   in setQueryString
-        [ ("timeout", Just "10")
-        , ("limit", Just "30")
-        , ("allowed_updates", Just "%5B%22message%22%5D")
-        , ("offset", ((+ 1) >>> show >>> ByteString.pack) <$> lastUpdateId)
-        ] <$>
-      parseRequest url
+  return $
+  (parseRequest_ (apiUrl token "getUpdates"))
+    { method = "GET"
+    , requestHeaders = [("Content-Type", "application/json")]
+    , requestBody = RequestBodyLBS (encode updateRequest)
+    }
+  where
+    updateRequest =
+      GetUpdates.Request
+        { GetUpdates.timeout = 10
+        , GetUpdates.limit = 30
+        , GetUpdates.allowedUpdates = ["message"]
+        , GetUpdates.offset = (+ 1) <$> lastUpdateId
+        }
 
 apiUrl :: Token -> String -> String
 apiUrl token apiMethod =
@@ -140,19 +143,21 @@ sendMessage state chatId reply = do
 
 newSendRequest :: Token -> ChatId -> Reply -> IO Request
 newSendRequest token (ChatId chatId) (Reply text keyboard) =
-  let url = apiUrl token "sendMessage"
-      markup =
-        case keyboard of
-          Normal -> SendMessage.ReplyKeyboardRemove
-          Options opts ->
-            SendMessage.InlineKeyboard
-              (map (\o -> [o]) opts) -- display options as a column
-              False
-              True
-      message = SendMessage.Message chatId text markup
-   in return $
-      (parseRequest_ url)
-        { method = "POST"
-        , requestHeaders = [("Content-Type", "application/json")]
-        , requestBody = RequestBodyLBS (encode message)
-        }
+  return $
+  (parseRequest_ (apiUrl token "sendMessage"))
+    { method = "POST"
+    , requestHeaders = [("Content-Type", "application/json")]
+    , requestBody = (RequestBodyLBS . encode) message
+    }
+  where
+    message = SendMessage.Message chatId text (replyMarkup keyboard)
+
+replyMarkup :: ReplyKeyboard -> SendMessage.ReplyMarkup
+replyMarkup keyboard =
+  case keyboard of
+    Normal -> SendMessage.ReplyKeyboardRemove
+    Options opts ->
+      SendMessage.InlineKeyboard
+        (map (\o -> [o]) opts) -- display options as a column
+        False
+        True

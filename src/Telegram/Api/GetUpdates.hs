@@ -1,6 +1,31 @@
 module Telegram.Api.GetUpdates where
 
-import Data.Aeson (FromJSON, (.:), parseJSON, withObject)
+import Data.Aeson
+  ( FromJSON
+  , ToJSON
+  , (.:)
+  , (.=)
+  , object
+  , parseJSON
+  , toJSON
+  , withObject
+  )
+
+data Request = Request
+  { timeout :: Int
+  , limit :: Int
+  , allowedUpdates :: [String]
+  , offset :: Maybe Int
+  }
+
+instance ToJSON Request where
+  toJSON r =
+    object $
+    [ "timeout" .= timeout r
+    , "limit" .= limit r
+    , "allowed_updates" .= allowedUpdates r
+    , "offset" .= offset r
+    ]
 
 data UpdateResponse = UpdateResponse
   { result :: [Update]
