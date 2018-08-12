@@ -1,8 +1,20 @@
 module Storage where
 
 import Conversation (Amount(..), Expense(..), Payer(..), Split(..))
-import Database.PostgreSQL.Simple (Connection, execute)
+import Database.PostgreSQL.Simple (Connection, execute, withTransaction)
+import Database.PostgreSQL.Simple.Migration
+  ( MigrationCommand(..)
+  , runMigrations
+  )
 import Telegram (Username)
+
+migrateDB :: Connection -> IO ()
+migrateDB conn = do
+  _ <-
+    withTransaction conn $
+    runMigrations True conn $
+    [MigrationInitialization, (MigrationDirectory "./db/migrate/")]
+  return ()
 
 createExpense ::
      Connection -> Telegram.Username -> Telegram.Username -> Expense -> IO ()

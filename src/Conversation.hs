@@ -10,9 +10,8 @@ module Conversation
   , start
   ) where
 
-import Conversation.Replies
 import Data.Char (toLower)
-import Telegram (Reply)
+import Telegram (Reply(..), ReplyKeyboard(..))
 import Text.Read (readMaybe)
 
 data Conversation
@@ -81,8 +80,14 @@ advance userMessage conversation =
             ])
         Nothing -> (Just conversation, [Answer $ apologizing askHowToSplit])
 
+askAmount :: Reply
+askAmount = Reply "How much?" Normal
+
 readAmount :: String -> Maybe Amount
 readAmount str = fmap Amount $ (readMaybe str)
+
+askWhoPaid :: Reply
+askWhoPaid = Reply "Who paid?" (Options ["Me", "Them"])
 
 readPayer :: String -> Maybe Payer
 readPayer str =
@@ -92,13 +97,25 @@ readPayer str =
     "they" -> Just They
     _ -> Nothing
 
+askHowToSplit :: Reply
+askHowToSplit =
+  Reply
+    "How will you split it?"
+    (Options ["Evenly", "All on me", "All on them"])
+
 readSplit :: String -> Maybe Split
 readSplit str =
   case (map toLower) str -- TODO: this should be defined in the same place as the keyboard options
         of
     "evenly" -> Just $ Split 50 50
     "all on me" -> Just $ Split 100 0
-    "all on them" -> Just $ Split 0 100
     _
       -- TODO: parse things such as "40% me / %30 them"
      -> Nothing
+
+done :: Reply
+done = Reply "Done!" Normal
+
+apologizing :: Reply -> Reply
+apologizing (Reply text options) =
+  Reply ("Sorry, I couldn't understand that. " ++ text) options

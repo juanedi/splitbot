@@ -6,10 +6,9 @@ import Data.ByteString.Char8 (pack)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
-import Migrations (migrateDB)
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
-import Storage (createExpense)
+import qualified Storage
 import qualified Telegram
 
 data State = State
@@ -37,7 +36,7 @@ main = do
   conn <- connectPostgreSQL (pack (Settings.databaseUrl settings))
   let userA = (Telegram.Username . Settings.userA) settings
   let userB = (Telegram.Username . Settings.userB) settings
-  migrateDB conn
+  Storage.migrateDB conn
   runServer $
     State
       { currentConnection = conn
@@ -95,7 +94,11 @@ runEffect state userState chatId effect =
    in case effect of
         Answer reply -> sendMessage telegramState chatId reply
         StoreAndReply expense reply -> do
-          createExpense conn (username userState) (buddy userState) expense
+          Storage.createExpense
+            conn
+            (username userState)
+            (buddy userState)
+            expense
           sendMessage telegramState chatId reply
 
 sendMessage :: Telegram.State -> Telegram.ChatId -> Telegram.Reply -> IO ()
