@@ -2,8 +2,8 @@ module Main where
 
 import Control.Arrow ((>>>))
 import Conversation
+import Conversation.Parameters (Split(..))
 import Data.ByteString.Char8 (pack)
-import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -22,6 +22,7 @@ data UserState = UserState
   { username :: Telegram.Username
   , buddy :: Telegram.Username
   , conversation :: Maybe Conversation
+  , preset :: Split
   }
 
 data UserId
@@ -36,12 +37,14 @@ main = do
   conn <- connectPostgreSQL (pack (Settings.databaseUrl settings))
   let userA = (Telegram.Username . Settings.userA) settings
   let userB = (Telegram.Username . Settings.userB) settings
+  let presetA = Settings.presetA settings
+  let presetB = 100 - presetA
   Storage.migrateDB conn
   runServer $
     State
       { currentConnection = conn
-      , userA = UserState userA userB Nothing
-      , userB = UserState userB userA Nothing
+      , userA = UserState userA userB Nothing (Split presetA)
+      , userB = UserState userB userA Nothing (Split presetB)
       , telegram = Telegram.init (Settings.telegramToken settings) manager
       }
 
@@ -71,10 +74,11 @@ matchUserId state uname
 processMessage :: State -> UserId -> Telegram.Message -> IO (State)
 processMessage state userId message =
   let currentUserState = getUserState userId state
+      currentConversation = conversation currentUserState
       (updatedConversation, effects) =
-        (conversation >>>
-         fmap (advance $ Telegram.text message) >>> fromMaybe start)
-          currentUserState
+        case currentConversation of
+          Nothing -> start (preset currentUserState)
+          Just c -> advance (Telegram.text message) c
       userState = currentUserState {conversation = updatedConversation}
       updatedState = setUserState userId userState state
    in do _ <- runEffects state userState (Telegram.chatId message) effects
