@@ -21,21 +21,13 @@ createExpense ::
      Connection -> Telegram.Username -> Telegram.Username -> Expense -> IO ()
 createExpense conn currentUser otherUser expense =
   let split = expenseSplit expense
-      (payer, buddy) =
+      (payerShare, payer, buddy) =
         case expensePayer expense of
-          Me -> (currentUser, otherUser)
-          They -> (otherUser, currentUser)
-      (payerShare, budyShare) =
-        case expensePayer expense of
-          Me -> (myPart split, theirPart split)
-          They -> (theirPart split, myPart split)
+          Me -> (myPart split, currentUser, otherUser)
+          They -> (100 - myPart split, otherUser, currentUser)
    in do _ <-
            execute
              conn
-             "INSERT INTO expenses (payer, buddy, payer_share, buddy_share, amount) VALUES (?, ?, ?, ?, ?)"
-             ( show payer
-             , show buddy
-             , payerShare
-             , budyShare
-             , value $ expenseAmount expense)
+             "INSERT INTO expenses (amount, payer_share, payer, peer) VALUES (?, ?, ?, ?)"
+             (value $ expenseAmount expense, payerShare, show payer, show buddy)
          return ()

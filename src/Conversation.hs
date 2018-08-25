@@ -67,7 +67,7 @@ askAmount :: Reply
 askAmount = Reply "How much?" Normal
 
 askWhoPaid :: Reply
-askWhoPaid = Reply "Who paid?" (Options ["Me", "Them"])
+askWhoPaid = Reply "Who paid?" (Options ["Me", "They"])
 
 askHowToSplit :: Reply
 askHowToSplit =

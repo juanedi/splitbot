@@ -18,9 +18,8 @@ data Payer
   = Me
   | They
 
-data Split = Split
+newtype Split = Split
   { myPart :: Integer
-  , theirPart :: Integer
   } deriving (Show)
 
 readAmount :: String -> Maybe Amount
@@ -38,8 +37,9 @@ readSplit :: String -> Maybe Split
 readSplit str =
   case (map toLower) str -- TODO: this should be defined in the same place as the keyboard options
         of
-    "evenly" -> Just $ Split 50 50
-    "all on me" -> Just $ Split 100 0
+    "evenly" -> Just $ Split 50
+    "all on me" -> Just $ Split 100
+    "all on them" -> Just $ Split 0
     _
       -- TODO: parse things such as "40% me / %30 them"
      -> Nothing
