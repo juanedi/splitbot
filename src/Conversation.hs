@@ -13,7 +13,7 @@ import Telegram (Reply(..), ReplyKeyboard(..))
 data Conversation
   = AwaitingAmount
   | AwaitingPayer { amount :: Amount }
-  | AwaitingSplit { payer :: Payer
+  | AwaitingSplit { payer :: Who
                   , amount :: Amount }
 
 data Question
@@ -27,7 +27,7 @@ data Effect
                   Reply
 
 data Expense = Expense
-  { expensePayer :: Payer
+  { expensePayer :: Who
   , expenseAmount :: Amount
   , expenseSplit :: Split
   }
@@ -44,7 +44,7 @@ advance userMessage conversation =
           (Just $ AwaitingPayer {amount = amount}, [Answer askWhoPaid])
         Nothing -> (Just conversation, [Answer $ apologizing askAmount])
     AwaitingPayer amount ->
-      case readPayer userMessage of
+      case readWho userMessage of
         Just payer ->
           ( Just $ AwaitingSplit {amount = amount, payer = payer}
           , [Answer askHowToSplit])

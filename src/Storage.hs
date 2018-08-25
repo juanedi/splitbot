@@ -1,7 +1,7 @@
 module Storage where
 
 import Conversation (Expense(..))
-import Conversation.Parameters (Amount(..), Payer(..), Split(..))
+import Conversation.Parameters (Amount(..), Split(..), Who(..))
 import Database.PostgreSQL.Simple (Connection, execute, withTransaction)
 import Database.PostgreSQL.Simple.Migration
   ( MigrationCommand(..)
