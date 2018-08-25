@@ -1,37 +1,20 @@
 module Conversation
-  ( Amount(..)
-  , Conversation
+  ( Conversation
   , Effect(..)
   , Expense(..)
   , Question(..)
-  , Payer(..)
-  , Split(..)
   , advance
   , start
   ) where
 
-import Data.Char (toLower)
+import Conversation.Parameters
 import Telegram (Reply(..), ReplyKeyboard(..))
-import Text.Read (readMaybe)
 
 data Conversation
   = AwaitingAmount
   | AwaitingPayer { amount :: Amount }
   | AwaitingSplit { payer :: Payer
                   , amount :: Amount }
-
-data Payer
-  = Me
-  | They
-
-newtype Amount = Amount
-  { value :: Int
-  }
-
-data Split = Split
-  { myPart :: Int
-  , theirPart :: Int
-  }
 
 data Question
   = AskAmount
@@ -83,35 +66,14 @@ advance userMessage conversation =
 askAmount :: Reply
 askAmount = Reply "How much?" Normal
 
-readAmount :: String -> Maybe Amount
-readAmount str = fmap Amount $ (readMaybe str)
-
 askWhoPaid :: Reply
 askWhoPaid = Reply "Who paid?" (Options ["Me", "Them"])
-
-readPayer :: String -> Maybe Payer
-readPayer str =
-  case (map toLower) str -- TODO: this should be defined in the same place as the keyboard options
-        of
-    "me" -> Just Me
-    "they" -> Just They
-    _ -> Nothing
 
 askHowToSplit :: Reply
 askHowToSplit =
   Reply
     "How will you split it?"
     (Options ["Evenly", "All on me", "All on them"])
-
-readSplit :: String -> Maybe Split
-readSplit str =
-  case (map toLower) str -- TODO: this should be defined in the same place as the keyboard options
-        of
-    "evenly" -> Just $ Split 50 50
-    "all on me" -> Just $ Split 100 0
-    _
-      -- TODO: parse things such as "40% me / %30 them"
-     -> Nothing
 
 done :: Reply
 done = Reply "Done!" Normal
