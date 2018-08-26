@@ -1,4 +1,7 @@
-module Conversation.Parameters.Payer where
+module Conversation.Parameters.Payer
+  ( ask
+  , parse
+  ) where
 
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)

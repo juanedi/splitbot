@@ -1,4 +1,7 @@
-module Storage where
+module Storage
+  ( migrateDB
+  , createExpense
+  ) where
 
 import Conversation (Expense(..))
 import Conversation.Parameters (Amount(..), Split(..), Who(..))

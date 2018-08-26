@@ -9,6 +9,7 @@ import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
 import qualified Storage
+import Telegram (ChatId, Message, Username(..))
 import qualified Telegram
 
 data State = State
@@ -19,8 +20,8 @@ data State = State
   }
 
 data UserState = UserState
-  { username :: Telegram.Username
-  , buddy :: Telegram.Username
+  { username :: Username
+  , buddy :: Username
   , conversation :: Maybe Conversation
   , preset :: Split
   }
@@ -35,8 +36,8 @@ main = do
   settings <- Settings.fromEnv
   manager <- newTlsManager
   conn <- connectPostgreSQL (pack (Settings.databaseUrl settings))
-  let userA = (Telegram.Username . Settings.userA) settings
-  let userB = (Telegram.Username . Settings.userB) settings
+  let userA = (Username . Settings.userA) settings
+  let userB = (Username . Settings.userB) settings
   let presetA = Settings.presetA settings
   let presetB = 100 - presetA
   Storage.migrateDB conn
@@ -59,19 +60,19 @@ runServer state = do
       runServer newState
     Just userId -> processMessage newState userId message >>= runServer
 
-getMessage :: State -> IO (Telegram.Message, State)
+getMessage :: State -> IO (Message, State)
 getMessage state = do
   (message, newTelegramState) <- (telegram >>> Telegram.getMessage) (state)
   putStrLn $ "<< " ++ (Telegram.text message)
   return $ (message, state {telegram = newTelegramState})
 
-matchUserId :: State -> Telegram.Username -> Maybe UserId
+matchUserId :: State -> Username -> Maybe UserId
 matchUserId state uname
   | (userA >>> username) state == uname = Just UserA
   | (userB >>> username) state == uname = Just UserB
   | otherwise = Nothing
 
-processMessage :: State -> UserId -> Telegram.Message -> IO (State)
+processMessage :: State -> UserId -> Message -> IO (State)
 processMessage state userId message =
   let currentUserState = getUserState userId state
       currentConversation = conversation currentUserState
@@ -84,14 +85,14 @@ processMessage state userId message =
    in do _ <- runEffects state userState (Telegram.chatId message) effects
          return updatedState
 
-runEffects :: State -> UserState -> Telegram.ChatId -> [Effect] -> IO ()
+runEffects :: State -> UserState -> ChatId -> [Effect] -> IO ()
 runEffects state userState chatId effects = do
   _ <- sequence (run <$> effects)
   return ()
   where
     run = runEffect state userState chatId
 
-runEffect :: State -> UserState -> Telegram.ChatId -> Effect -> IO ()
+runEffect :: State -> UserState -> ChatId -> Effect -> IO ()
 runEffect state userState chatId effect =
   let conn = currentConnection state
       telegramState = telegram state
@@ -105,7 +106,7 @@ runEffect state userState chatId effect =
             expense
           sendMessage telegramState chatId reply
 
-sendMessage :: Telegram.State -> Telegram.ChatId -> Telegram.Reply -> IO ()
+sendMessage :: Telegram.State -> ChatId -> Telegram.Reply -> IO ()
 sendMessage telegram chatId reply@(Telegram.Reply text _) = do
   putStrLn $ ">> " ++ text
   Telegram.sendMessage telegram chatId reply

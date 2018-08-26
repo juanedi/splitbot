@@ -1,4 +1,8 @@
-module Conversation.Parameters.Amount where
+module Conversation.Parameters.Amount
+  ( Amount(..)
+  , ask
+  , parse
+  ) where
 
 import Telegram (Reply(..), ReplyKeyboard(..))
 import Text.Read (readMaybe)
