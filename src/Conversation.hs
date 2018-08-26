@@ -8,6 +8,9 @@ module Conversation
   ) where
 
 import Conversation.Parameters
+import qualified Conversation.Parameters.Amount as Amount
+import qualified Conversation.Parameters.Payer as Payer
+import qualified Conversation.Parameters.Split as Split
 import Telegram (Reply(..), ReplyKeyboard(..))
 
 data Conversation
@@ -35,26 +38,26 @@ data Expense = Expense
   }
 
 start :: Split -> (Maybe Conversation, [Effect])
-start preset = (Just (AwaitingAmount preset), [Answer askAmount])
+start preset = (Just (AwaitingAmount preset), [Answer Amount.ask])
 
 advance :: String -> Conversation -> (Maybe Conversation, [Effect])
 advance userMessage conversation =
   case conversation of
     AwaitingAmount preset ->
-      case readAmount userMessage of
+      case Amount.parse userMessage of
         Just amount ->
           ( Just $ AwaitingPayer {preset = preset, amount = amount}
-          , [Answer askWhoPaid])
-        Nothing -> (Just conversation, [Answer $ apologizing askAmount])
+          , [Answer Payer.ask])
+        Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
     AwaitingPayer preset amount ->
-      case readWho userMessage of
+      case Payer.parse userMessage of
         Just payer ->
           ( Just $
             AwaitingSplit {preset = preset, amount = amount, payer = payer}
-          , [Answer (askHowToSplit preset)])
-        Nothing -> (Just conversation, [Answer $ apologizing askWhoPaid])
+          , [Answer (Split.ask preset)])
+        Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
     AwaitingSplit preset payer amount ->
-      case readSplit userMessage of
+      case Split.parse userMessage of
         Just split ->
           ( Nothing
           , [ StoreAndReply
@@ -66,24 +69,7 @@ advance userMessage conversation =
                 done
             ])
         Nothing ->
-          (Just conversation, [Answer $ apologizing (askHowToSplit preset)])
-
-askAmount :: Reply
-askAmount = Reply "How much?" Normal
-
-askWhoPaid :: Reply
-askWhoPaid = Reply "Who paid?" (Options ["Me", "They"])
-
-askHowToSplit :: Split -> Reply
-askHowToSplit preset =
-  Reply
-    "How will you split it?"
-    (Options
-       [ "Evenly"
-       , "All on me"
-       , "All on them"
-       , "I paid " ++ show (myPart preset) ++ "%"
-       ])
+          (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
 done :: Reply
 done = Reply "Done!" Normal
