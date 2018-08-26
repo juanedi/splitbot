@@ -27,9 +27,12 @@ ask preset =
 
 parse :: String -> Maybe Split
 parse str =
-  case parseString parser mempty (map toLower str) of
+  case parseReply str of
     Success split -> Just split
     Failure _ -> Nothing
+
+parseReply :: String -> Result Split
+parseReply str = parseString (parser <* eof) mempty (map toLower str)
 
 parser :: Parser Split
 parser =
