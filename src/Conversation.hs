@@ -41,35 +41,33 @@ start :: Split -> (Maybe Conversation, [Effect])
 start preset = (Just (AwaitingAmount preset), [Answer Amount.ask])
 
 advance :: String -> Conversation -> (Maybe Conversation, [Effect])
-advance userMessage conversation =
-  case conversation of
-    AwaitingAmount preset ->
-      case Amount.parse userMessage of
-        Just amount ->
-          ( Just $ AwaitingPayer {preset = preset, amount = amount}
-          , [Answer Payer.ask])
-        Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
-    AwaitingPayer preset amount ->
-      case Payer.parse userMessage of
-        Just payer ->
-          ( Just $
-            AwaitingSplit {preset = preset, amount = amount, payer = payer}
-          , [Answer (Split.ask preset)])
-        Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
-    AwaitingSplit preset payer amount ->
-      case Split.parse userMessage of
-        Just split ->
-          ( Nothing
-          , [ StoreAndReply
-                (Expense
-                   { expensePayer = payer
-                   , expenseAmount = amount
-                   , expenseSplit = split
-                   })
-                done
-            ])
-        Nothing ->
-          (Just conversation, [Answer $ apologizing (Split.ask preset)])
+advance userMessage conversation = case conversation of
+  AwaitingAmount preset -> case Amount.parse userMessage of
+    Just amount ->
+      ( Just $ AwaitingPayer {preset = preset, amount = amount}
+      , [Answer Payer.ask]
+      )
+    Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
+  AwaitingPayer preset amount -> case Payer.parse userMessage of
+    Just payer ->
+      ( Just $ AwaitingSplit {preset = preset, amount = amount, payer = payer}
+      , [Answer (Split.ask preset)]
+      )
+    Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
+  AwaitingSplit preset payer amount -> case Split.parse userMessage of
+    Just split ->
+      ( Nothing
+      , [ StoreAndReply
+            (Expense
+              { expensePayer  = payer
+              , expenseAmount = amount
+              , expenseSplit  = split
+              }
+            )
+            done
+        ]
+      )
+    Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
 done :: Reply
 done = Reply "Done!" Normal

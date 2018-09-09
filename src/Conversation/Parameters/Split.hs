@@ -15,42 +15,41 @@ newtype Split = Split
   } deriving (Show)
 
 ask :: Split -> Reply
-ask preset =
-  Reply
-    "How will you split it?"
-    (Options
-       [ "Evenly"
-       , "All on me"
-       , "All on them"
-       , "I paid " ++ show (myPart preset) ++ "%"
-       ])
+ask preset = Reply
+  "How will you split it?"
+  (Options
+    [ "Evenly"
+    , "All on me"
+    , "All on them"
+    , "I paid " ++ show (myPart preset) ++ "%"
+    ]
+  )
 
 parse :: String -> Maybe Split
-parse str =
-  case parseReply str of
-    Success split -> Just split
-    Failure _ -> Nothing
+parse str = case parseReply str of
+  Success split -> Just split
+  Failure _     -> Nothing
 
 parseReply :: String -> Result Split
 parseReply str = parseString (parser <* eof) mempty (map toLower str)
 
 parser :: Parser Split
 parser =
-  (try (constParser "evenly" (Split 50)) <?> "tried 'evenly'") <|>
-  (try (constParser "all on me" (Split 100)) <?> "tried 'all on me'") <|>
-  (try (constParser "all on them" (Split 0)) <?> "tried 'all on them'") <|>
-  myShareParser
+  (try (constParser "evenly" (Split 50)) <?> "tried 'evenly'")
+    <|> (try (constParser "all on me" (Split 100)) <?> "tried 'all on me'")
+    <|> (try (constParser "all on them" (Split 0)) <?> "tried 'all on them'")
+    <|> myShareParser
 
 myShareParser :: Parser Split
 myShareParser = do
-  who <- whoParser
-  _ <- string " paid "
+  who   <- whoParser
+  _     <- string " paid "
   share <- decimal
-  _ <- string "%"
+  _     <- string "%"
   if 0 <= share && share <= 100
     then case who of
-           Me -> return (Split share)
-           They -> return (Split (100 - share))
+      Me   -> return (Split share)
+      They -> return (Split (100 - share))
     else fail "Share must be between 0% and 100%"
 
 whoParser :: Parser Who
