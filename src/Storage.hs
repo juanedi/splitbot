@@ -10,7 +10,7 @@ import Database.PostgreSQL.Simple.Migration
   ( MigrationCommand(..)
   , runMigrations
   )
-import Telegram (Username)
+import Telegram.Api (Username)
 
 migrateDB :: Connection -> IO ()
 migrateDB conn = do
@@ -20,8 +20,7 @@ migrateDB conn = do
     $ [MigrationInitialization, (MigrationDirectory "./db/migrate/")]
   return ()
 
-createExpense
-  :: Connection -> Telegram.Username -> Telegram.Username -> Expense -> IO ()
+createExpense :: Connection -> Username -> Username -> Expense -> IO ()
 createExpense conn currentUser otherUser expense
   = let
       split                      = expenseSplit expense

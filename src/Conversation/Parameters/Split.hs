@@ -7,7 +7,7 @@ module Conversation.Parameters.Split
 import Control.Applicative ((<|>))
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 import Text.Trifecta
 
 newtype Split = Split

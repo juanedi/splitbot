@@ -11,7 +11,7 @@ import Conversation.Parameters
 import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Payer as Payer
 import qualified Conversation.Parameters.Split as Split
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 
 data Conversation
   = AwaitingAmount { preset :: Split }

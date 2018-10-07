@@ -9,7 +9,8 @@ import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
 import qualified Storage
-import Telegram (ChatId, Message, Username(..))
+import Telegram.Api (ChatId, Username(..), Reply(..))
+import Telegram (Message)
 import qualified Telegram
 
 data State = State
@@ -37,9 +38,9 @@ main = do
   manager  <- newTlsManager
   conn     <- connectPostgreSQL (pack (Settings.databaseUrl settings))
   let userA   = (Username . Settings.userA) settings
-  let userB   = (Username . Settings.userB) settings
-  let presetA = Settings.presetA settings
-  let presetB = 100 - presetA
+      userB   = (Username . Settings.userB) settings
+      presetA = Settings.presetA settings
+      presetB = 100 - presetA
   Storage.migrateDB conn
   runServer $ State
     { currentConnection = conn
@@ -102,8 +103,8 @@ runEffect state userState chatId effect =
                                 expense
           sendMessage telegramState chatId reply
 
-sendMessage :: Telegram.State -> ChatId -> Telegram.Reply -> IO ()
-sendMessage telegram chatId reply@(Telegram.Reply text _) = do
+sendMessage :: Telegram.State -> ChatId -> Reply -> IO ()
+sendMessage telegram chatId reply@(Reply text _) = do
   putStrLn $ ">> " ++ text
   Telegram.sendMessage telegram chatId reply
 

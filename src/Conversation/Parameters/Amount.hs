@@ -4,7 +4,7 @@ module Conversation.Parameters.Amount
   , parse
   ) where
 
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 import Text.Read (readMaybe)
 
 newtype Amount = Amount
