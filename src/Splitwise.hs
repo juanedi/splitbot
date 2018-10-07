@@ -32,18 +32,18 @@ createExpense
   -> State
   -> IO Bool
 createExpense http (UserId currentUser) (UserId buddy) expense (State (Token token))
-  = let cost = Parameters.value $ Conversation.expenseAmount expense
+  = let description = Parameters.text $ Conversation.expenseDescription expense
+        cost = Parameters.value $ Conversation.expenseAmount expense
         payer                          = Conversation.expensePayer expense
         (myPaidShare, buddysPaidShare) = paidShares payer cost
         split                          = Conversation.expenseSplit expense
         (myOwedShare, buddysOwedShare) = owedShares split cost
-
-
-        apiExpense                     = Api.Expense
+        apiToken                       = Api.Token $ pack token
+    in  Api.createExpense http apiToken $ Api.Expense
           { Api.payment     = False
           , Api.cost        = cost
           , Api.currency    = Api.ARS
-          , Api.description = "Test!"
+          , Api.description = description
           , Api.user1Share  = Api.UserShare
             { Api.userId    = currentUser
             , Api.paidShare = myPaidShare
@@ -55,9 +55,6 @@ createExpense http (UserId currentUser) (UserId buddy) expense (State (Token tok
             , Api.owedShare = buddysOwedShare
             }
           }
-
-        apiToken = Api.Token $ pack token
-    in  Api.createExpense http apiToken apiExpense
 
 paidShares :: Parameters.Who -> Integer -> (Integer, Integer)
 paidShares payer cost = case payer of
