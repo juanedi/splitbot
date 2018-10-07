@@ -6,6 +6,7 @@ import Conversation.Parameters (Split(..))
 import Data.ByteString.Char8 (pack)
 import Data.Traversable (sequence)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
+import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
 import qualified Storage
@@ -15,6 +16,7 @@ import qualified Telegram
 
 data State = State
   { currentConnection :: Connection
+  , http :: Http.Manager
   , userA :: UserState
   , userB :: UserState
   , telegram :: Telegram.State
@@ -34,9 +36,9 @@ data UserId
 
 main :: IO ()
 main = do
-  settings <- Settings.fromEnv
-  manager  <- newTlsManager
-  conn     <- connectPostgreSQL (pack (Settings.databaseUrl settings))
+  settings    <- Settings.fromEnv
+  httpManager <- newTlsManager
+  conn        <- connectPostgreSQL (pack (Settings.databaseUrl settings))
   let userA   = (Username . Settings.userA) settings
       userB   = (Username . Settings.userB) settings
       presetA = Settings.presetA settings
@@ -44,9 +46,10 @@ main = do
   Storage.migrateDB conn
   runServer $ State
     { currentConnection = conn
+    , http              = httpManager
     , userA             = UserState userA userB Nothing (Split presetA)
     , userB             = UserState userB userA Nothing (Split presetB)
-    , telegram = Telegram.init (Settings.telegramToken settings) manager
+    , telegram          = Telegram.init (Settings.telegramToken settings)
     }
 
 runServer :: State -> IO ()
@@ -62,7 +65,9 @@ runServer state = do
 
 getMessage :: State -> IO (Message, State)
 getMessage state = do
-  (message, newTelegramState) <- (telegram >>> Telegram.getMessage) (state)
+  let manager = http state
+  (message, newTelegramState) <- (telegram >>> Telegram.getMessage manager)
+    state
   putStrLn $ "<< " ++ (Telegram.text message)
   return $ (message, state { telegram = newTelegramState })
 
@@ -93,20 +98,21 @@ runEffects state userState chatId effects = do
 runEffect :: State -> UserState -> ChatId -> Effect -> IO ()
 runEffect state userState chatId effect =
   let conn          = currentConnection state
+      httpManager   = http state
       telegramState = telegram state
   in  case effect of
-        Answer reply                -> sendMessage telegramState chatId reply
+        Answer reply -> sendMessage httpManager telegramState chatId reply
         StoreAndReply expense reply -> do
           Storage.createExpense conn
                                 (username userState)
                                 (buddy userState)
                                 expense
-          sendMessage telegramState chatId reply
+          sendMessage httpManager telegramState chatId reply
 
-sendMessage :: Telegram.State -> ChatId -> Reply -> IO ()
-sendMessage telegram chatId reply@(Reply text _) = do
+sendMessage :: Http.Manager -> Telegram.State -> ChatId -> Reply -> IO ()
+sendMessage http telegram chatId reply@(Reply text _) = do
   putStrLn $ ">> " ++ text
-  Telegram.sendMessage telegram chatId reply
+  Telegram.sendMessage http telegram chatId reply
 
 getUserState :: UserId -> State -> UserState
 getUserState userId = case userId of

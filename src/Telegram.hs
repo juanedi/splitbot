@@ -22,7 +22,6 @@ import qualified Telegram.Api as Api
 
 data State = State
   { token :: Token
-  , manager :: Http.Manager
   , fetchState :: FetchState
   }
 
@@ -37,12 +36,11 @@ data Message = Message
   , text :: String
   }
 
-init :: Token -> Http.Manager -> State
-init token manager =
-  State {token = token, manager = manager, fetchState = NeedMore Nothing}
+init :: Token -> State
+init token = State {token = token, fetchState = NeedMore Nothing}
 
-getMessage :: State -> IO (Message, State)
-getMessage state = case fetchState state of
+getMessage :: Http.Manager -> State -> IO (Message, State)
+getMessage http state = case fetchState state of
   Buffered nextUpdate rest -> return
     ( toMessage nextUpdate
     , case rest of
@@ -51,13 +49,14 @@ getMessage state = case fetchState state of
         state { fetchState = NeedMore $ Just $ GetUpdates.updateId nextUpdate }
     )
   NeedMore lastUpdateId -> do
-    response <- requestUpdates (token state) (manager state) lastUpdateId
+    response <- requestUpdates (token state) http lastUpdateId
     case GetUpdates.result response of
-      u : us -> getMessage $ state { fetchState = Buffered u us }
-      []     -> do
+      u : us -> do
+        getMessage http $ state { fetchState = Buffered u us }
+      [] -> do
         putStrLn "No updates found! Will retry in a bit"
         threadDelay (1 * 1000 * 1000)
-        getMessage state
+        getMessage http state
 
 toMessage :: GetUpdates.Update -> Message
 toMessage update =
@@ -82,7 +81,7 @@ requestUpdates token manager lastUpdateId = do
       requestUpdates token manager ((+ 1) <$> lastUpdateId)
     (Right updates) -> return updates
 
-sendMessage :: State -> ChatId -> Reply -> IO ()
-sendMessage state chatId reply =
+sendMessage :: Http.Manager -> State -> ChatId -> Reply -> IO ()
+sendMessage http state chatId reply =
   -- TODO: handle error
-  Api.sendMessage (token state) (manager state) chatId reply >> return ()
+  Api.sendMessage (token state) http chatId reply >> return ()
