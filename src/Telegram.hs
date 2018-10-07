@@ -28,7 +28,7 @@ data State = State
 data FetchState
   = Buffered GetUpdates.Update
              [GetUpdates.Update]
-  | NeedMore (Maybe Int)
+  | NeedMore (Maybe Integer)
 
 data Username =
   Username String
@@ -78,7 +78,7 @@ toMessage update =
         }
 
 requestUpdates
-  :: Token -> Http.Manager -> Maybe Int -> IO (GetUpdates.UpdateResponse)
+  :: Token -> Http.Manager -> Maybe Integer -> IO (GetUpdates.UpdateResponse)
 requestUpdates token manager lastUpdateId = do
   result <- Api.getUpdates token manager ((+ 1) <$> lastUpdateId)
   case result of

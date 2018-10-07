@@ -25,14 +25,14 @@ data Expense = Expense
   , user2Share :: UserShare
   }
 
-type Amount = Int
+type Amount = Integer
 
 data Currency
   = ARS
   | USD
 
 data UserShare = UserShare
-  { userId :: Int
+  { userId :: Integer
   , paidShare :: Amount
   , owedShare :: Amount
   }

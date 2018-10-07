@@ -50,7 +50,7 @@ type SendMessageResult
   = Bool
 
 
-getUpdates :: Token -> Http.Manager -> Maybe Int -> IO GetUpdatesResult
+getUpdates :: Token -> Http.Manager -> Maybe Integer -> IO GetUpdatesResult
 getUpdates token manager offset = do
   request  <- newUpdateRequest token offset
   response <- httpLbs request manager
@@ -63,7 +63,7 @@ getUpdates token manager offset = do
     _ -> do
       return (Left GetUpdatesApiError)
 
-newUpdateRequest :: Token -> Maybe Int -> IO Http.Request
+newUpdateRequest :: Token -> Maybe Integer -> IO Http.Request
 newUpdateRequest token offset =
   return $ (parseRequest_ (apiUrl token "getUpdates"))
     { method         = "GET"

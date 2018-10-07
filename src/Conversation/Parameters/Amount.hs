@@ -8,7 +8,7 @@ import Telegram.Api (Reply(..), ReplyKeyboard(..))
 import Text.Read (readMaybe)
 
 newtype Amount = Amount
-  { value :: Int
+  { value :: Integer
   }
 
 ask :: Reply

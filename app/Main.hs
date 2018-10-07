@@ -134,18 +134,23 @@ runEffects state chatState effects = do
 
 runEffect :: State -> ChatState -> Effect -> IO ()
 runEffect state chatState effect =
-  let conn          = currentConnection state
-      httpManager   = http state
-      telegramState = telegram state
+  let _conn          = currentConnection state
+      httpManager    = http state
+      telegramState  = telegram state
+      splitwiseState = splitwise state
   in  case effect of
         Answer reply ->
           sendMessage httpManager telegramState (chatId chatState) reply
         StoreAndReply expense reply -> do
-          Storage.createExpense conn
-                                (telegramId (currentUser chatState))
-                                (telegramId (buddy chatState))
-                                expense
-          sendMessage httpManager telegramState (chatId chatState) reply
+          sucess <- Splitwise.createExpense
+            httpManager
+            (splitwiseId (currentUser chatState))
+            (splitwiseId (buddy chatState))
+            expense
+            splitwiseState
+          if sucess
+            then sendMessage httpManager telegramState (chatId chatState) reply
+            else return ()
 
 sendMessage :: Http.Manager -> Telegram.State -> ChatId -> Reply -> IO ()
 sendMessage http telegram chatId reply@(Reply text _) = do
