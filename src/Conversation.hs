@@ -9,15 +9,21 @@ module Conversation
 
 import Conversation.Parameters
 import qualified Conversation.Parameters.Amount as Amount
+import qualified Conversation.Parameters.Description as Description
 import qualified Conversation.Parameters.Payer as Payer
 import qualified Conversation.Parameters.Split as Split
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 
 data Conversation
-  = AwaitingAmount { preset :: Split }
+  = AwaitingDescription { preset :: Split }
+  | AwaitingAmount { preset :: Split
+                   , description :: Description
+                   }
   | AwaitingPayer { preset :: Split
+                  , description :: Description
                   , amount :: Amount }
   | AwaitingSplit { preset :: Split
+                  , description :: Description
                   , payer :: Who
                   , amount :: Amount }
 
@@ -32,42 +38,61 @@ data Effect
                   Reply
 
 data Expense = Expense
-  { expensePayer :: Who
+  { expenseDescription :: Description
+  , expensePayer :: Who
   , expenseAmount :: Amount
   , expenseSplit :: Split
   }
 
 start :: Split -> (Maybe Conversation, [Effect])
-start preset = (Just (AwaitingAmount preset), [Answer Amount.ask])
+start preset = (Just (AwaitingDescription preset), [Answer Description.ask])
 
 advance :: String -> Conversation -> (Maybe Conversation, [Effect])
 advance userMessage conversation = case conversation of
-  AwaitingAmount preset -> case Amount.parse userMessage of
+  AwaitingDescription preset ->
+    ( Just $ AwaitingAmount
+      { preset      = preset
+      , description = Description.read userMessage
+      }
+    , [Answer Amount.ask]
+    )
+  AwaitingAmount preset description -> case Amount.parse userMessage of
     Just amount ->
-      ( Just $ AwaitingPayer {preset = preset, amount = amount}
+      ( Just $ AwaitingPayer
+        { preset      = preset
+        , description = description
+        , amount      = amount
+        }
       , [Answer Payer.ask]
       )
     Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
-  AwaitingPayer preset amount -> case Payer.parse userMessage of
+  AwaitingPayer preset description amount -> case Payer.parse userMessage of
     Just payer ->
-      ( Just $ AwaitingSplit {preset = preset, amount = amount, payer = payer}
+      ( Just $ AwaitingSplit
+        { preset      = preset
+        , description = description
+        , amount      = amount
+        , payer       = payer
+        }
       , [Answer (Split.ask preset)]
       )
     Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
-  AwaitingSplit preset payer amount -> case Split.parse userMessage of
-    Just split ->
-      ( Nothing
-      , [ StoreAndReply
-            (Expense
-              { expensePayer  = payer
-              , expenseAmount = amount
-              , expenseSplit  = split
-              }
-            )
-            done
-        ]
-      )
-    Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
+  AwaitingSplit preset description payer amount ->
+    case Split.parse userMessage of
+      Just split ->
+        ( Nothing
+        , [ StoreAndReply
+              (Expense
+                { expenseDescription = description
+                , expensePayer       = payer
+                , expenseAmount      = amount
+                , expenseSplit       = split
+                }
+              )
+              done
+          ]
+        )
+      Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
 done :: Reply
 done = Reply "Done!" Normal

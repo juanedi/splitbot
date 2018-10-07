@@ -12,10 +12,10 @@ import Data.Aeson
   )
 
 data Request = Request
-  { timeout :: Int
+  { timeout :: Integer
   , limit :: Int
   , allowedUpdates :: [String]
-  , offset :: Maybe Int
+  , offset :: Maybe Integer
   }
 
 instance ToJSON Request where
@@ -35,7 +35,7 @@ instance FromJSON UpdateResponse where
   parseJSON = withObject "update" $ \o -> fmap UpdateResponse (o .: "result")
 
 data Update = Update
-  { updateId :: Int
+  { updateId :: Integer
   , message :: Message
   } deriving (Show)
 

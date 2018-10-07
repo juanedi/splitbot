@@ -5,7 +5,7 @@ module Conversation.Parameters.Payer
 
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 
 ask :: Reply
 ask = Reply "Who paid?" (Options ["Me", "They"])

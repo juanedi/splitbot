@@ -7,7 +7,7 @@ module Conversation.Parameters.Split
 import Control.Applicative ((<|>))
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)
-import Telegram (Reply(..), ReplyKeyboard(..))
+import Telegram.Api (Reply(..), ReplyKeyboard(..))
 import Text.Trifecta
 
 newtype Split = Split
@@ -18,11 +18,7 @@ ask :: Split -> Reply
 ask preset = Reply
   "How will you split it?"
   (Options
-    [ "Evenly"
-    , "All on me"
-    , "All on them"
-    , "I paid " ++ show (myPart preset) ++ "%"
-    ]
+    ["Evenly", "All on me", "All on them", show (myPart preset) ++ "% on me"]
   )
 
 parse :: String -> Maybe Split
@@ -42,10 +38,9 @@ parser =
 
 myShareParser :: Parser Split
 myShareParser = do
-  who   <- whoParser
-  _     <- string " paid "
   share <- decimal
-  _     <- string "%"
+  _     <- string "% on "
+  who   <- whoParser
   if 0 <= share && share <= 100
     then case who of
       Me   -> return (Split share)
@@ -54,7 +49,7 @@ myShareParser = do
 
 whoParser :: Parser Who
 whoParser =
-  (try (constParser "i" Me) <?> "tried 'I'") <|> constParser "they" They
+  (try (constParser "me" Me) <?> "tried 'I'") <|> constParser "them" They
 
 constParser :: String -> a -> Parser a
 constParser accepts value = string accepts >> return value
