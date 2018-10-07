@@ -23,8 +23,6 @@ dependencies:
 - base >= 4.7 && < 5
 - bytestring
 - containers
-- postgresql-simple
-- postgresql-simple-migration
 - http-types
 - http-client
 - http-client-tls

@@ -11,7 +11,6 @@ data Settings = Settings
   , userAPreset :: Integer
   , userBTelegramId :: String
   , userBSplitwiseId :: Integer
-  , databaseUrl :: String
   , telegramToken :: String
   , splitwiseToken :: String
   }
@@ -24,7 +23,6 @@ fromEnv =
     <*> getEnvInt "USER_A_PRESET"
     <*> getEnv "USER_B_TG_ID"
     <*> getEnvInt "USER_B_SW_ID"
-    <*> getEnv "DB_URL"
     <*> getEnv "TELEGRAM_TOKEN"
     <*> getEnv "SPLITWISE_TOKEN"
 

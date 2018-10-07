@@ -3,21 +3,17 @@ module Main where
 import Control.Arrow ((>>>))
 import Conversation
 import Conversation.Parameters (Split(..))
-import Data.ByteString.Char8 (pack)
 import Data.Traversable (sequence)
-import Database.PostgreSQL.Simple (Connection, connectPostgreSQL)
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
-import qualified Storage
 import Telegram.Api (ChatId, Reply(..))
 import Telegram (Message)
 import qualified Telegram
 import qualified Splitwise
 
 data State = State
-  { currentConnection :: Connection
-  , http :: Http.Manager
+  { http :: Http.Manager
   , userA :: User
   , userB :: User
   , telegram :: Telegram.State
@@ -50,14 +46,11 @@ main :: IO ()
 main = do
   settings    <- Settings.fromEnv
   httpManager <- newTlsManager
-  conn        <- connectPostgreSQL (pack (Settings.databaseUrl settings))
   let presetA = Settings.userAPreset settings
       presetB = 100 - presetA
-  Storage.migrateDB conn
   runServer $ State
-    { currentConnection = conn
-    , http              = httpManager
-    , userA             = User
+    { http      = httpManager
+    , userA     = User
       { identity     = UserIdentity
         { telegramId  = (Telegram.Username . Settings.userATelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userASplitwiseId) settings
@@ -65,7 +58,7 @@ main = do
       , preset       = Split presetA
       , conversation = Nothing
       }
-    , userB             = User
+    , userB     = User
       { identity     = UserIdentity
         { telegramId  = (Telegram.Username . Settings.userBTelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userBSplitwiseId) settings
@@ -73,8 +66,8 @@ main = do
       , preset       = Split presetB
       , conversation = Nothing
       }
-    , telegram          = Telegram.init (Settings.telegramToken settings)
-    , splitwise         = Splitwise.init
+    , telegram  = Telegram.init (Settings.telegramToken settings)
+    , splitwise = Splitwise.init
       $ (Splitwise.Token . Settings.splitwiseToken) settings
     }
 
@@ -134,8 +127,7 @@ runEffects state chatState effects = do
 
 runEffect :: State -> ChatState -> Effect -> IO ()
 runEffect state chatState effect =
-  let _conn          = currentConnection state
-      httpManager    = http state
+  let httpManager    = http state
       telegramState  = telegram state
       splitwiseState = splitwise state
   in  case effect of
