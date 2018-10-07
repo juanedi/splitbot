@@ -5,7 +5,6 @@ module Telegram.Api (
   Reply(..),
   ReplyKeyboard(..),
   Token,
-  Username(..),
   GetUpdatesResult,
   GetUpdatesError(..)
   ) where
@@ -28,15 +27,6 @@ import qualified Telegram.Api.GetUpdates as GetUpdates
 import qualified Telegram.Api.SendMessage as SendMessage
 
 type Token = String
-
-data Username =
-  Username String
-
-instance Eq Username where
-  (==) (Username a) (Username b) = a == b
-
-instance Show Username where
-  show (Username a) = a
 
 data Reply =
   Reply String

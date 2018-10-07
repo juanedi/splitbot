@@ -10,7 +10,7 @@ import Database.PostgreSQL.Simple.Migration
   ( MigrationCommand(..)
   , runMigrations
   )
-import Telegram.Api (Username)
+import Telegram (Username)
 
 migrateDB :: Connection -> IO ()
 migrateDB conn = do

@@ -7,6 +7,7 @@ module Telegram
   , text
   , Message
   , State
+  , Username(..)
   ) where
 
 import Control.Concurrent (threadDelay)
@@ -15,7 +16,6 @@ import qualified Telegram.Api.GetUpdates as GetUpdates
 import Telegram.Api
  ( Token
  , ChatId(..)
- , Username(..)
  , Reply(..)
  )
 import qualified Telegram.Api as Api
@@ -29,6 +29,15 @@ data FetchState
   = Buffered GetUpdates.Update
              [GetUpdates.Update]
   | NeedMore (Maybe Int)
+
+data Username =
+  Username String
+
+instance Eq Username where
+  (==) (Username a) (Username b) = a == b
+
+instance Show Username where
+  show (Username a) = a
 
 data Message = Message
   { chatId :: ChatId
