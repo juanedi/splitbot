@@ -95,7 +95,9 @@ advance userMessage conversation = case conversation of
         in  (Just $ AwaitingConfirmation expense, [Answer (confirm expense)])
       Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
-  AwaitingConfirmation expense -> (Nothing, [StoreAndReply expense done])
+  AwaitingConfirmation expense -> case parseConfirmation userMessage of
+    True  -> (Nothing, [StoreAndReply expense done])
+    False -> (Nothing, [Answer cancelled])
 
 confirm :: Expense -> Reply
 confirm expense =
@@ -126,9 +128,16 @@ confirm expense =
         )
         (Options ["Yes", "No"])
 
+cancelled :: Reply
+cancelled = Reply "Alright, the expense was discarded." Normal
+
 done :: Reply
 done = Reply "Done!" Normal
 
 apologizing :: Reply -> Reply
 apologizing (Reply text options) =
   Reply ("Sorry, I couldn't understand that. " ++ text) options
+
+parseConfirmation :: String -> Bool
+parseConfirmation "Yes" = True
+parseConfirmation _     = False
