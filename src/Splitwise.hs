@@ -7,7 +7,7 @@ module Splitwise
   )
 where
 
-import qualified Conversation
+import qualified Conversation.Expense
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
 import qualified Conversation.Parameters as Parameters
@@ -28,15 +28,16 @@ createExpense
   :: Http.Manager
   -> UserId
   -> UserId
-  -> Conversation.Expense
+  -> Conversation.Expense.Expense
   -> State
   -> IO Bool
 createExpense http (UserId currentUser) (UserId buddy) expense (State (Token token))
-  = let description = Parameters.text $ Conversation.expenseDescription expense
-        cost = Parameters.value $ Conversation.expenseAmount expense
-        payer                          = Conversation.expensePayer expense
+  = let description =
+          Parameters.text $ Conversation.Expense.description expense
+        cost = Parameters.value $ Conversation.Expense.amount expense
+        payer                          = Conversation.Expense.payer expense
         (myPaidShare, buddysPaidShare) = paidShares payer cost
-        split                          = Conversation.expenseSplit expense
+        split                          = Conversation.Expense.split expense
         (myOwedShare, buddysOwedShare) = owedShares split cost
         apiToken                       = Api.Token $ pack token
     in  Api.createExpense http apiToken $ Api.Expense
