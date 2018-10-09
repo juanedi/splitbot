@@ -1,0 +1,20 @@
+resolver: lts-12.11
+
+docker:
+  enable: true
+
+system-ghc: true
+
+image:
+  container:
+    base: "juanedi/splitbot-build"
+    name: "juanedi/splitbot"
+
+ghc-options:
+    "$locals": -Wall -fno-warn-name-shadowing -XOverloadedStrings
+
+local-bin-path:
+  _build
+
+packages:
+- ..
