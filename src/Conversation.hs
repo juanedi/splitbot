@@ -11,6 +11,7 @@ import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
 import Conversation.Parameters
 import qualified Conversation.Parameters.Amount as Amount
+import qualified Conversation.Parameters.Confirmation as Confirmation
 import qualified Conversation.Parameters.Description as Description
 import qualified Conversation.Parameters.Payer as Payer
 import qualified Conversation.Parameters.Split as Split
@@ -87,54 +88,21 @@ advance userMessage conversation = case conversation of
                 , Expense.split       = split
                 }
               )
-        in  (Just $ AwaitingConfirmation expense, [Answer (confirm expense)])
+        in  ( Just $ AwaitingConfirmation expense
+            , [Answer (Confirmation.ask expense)]
+            )
       Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
-  AwaitingConfirmation expense -> case parseConfirmation userMessage of
+  AwaitingConfirmation expense -> case Confirmation.read userMessage of
     True  -> (Nothing, [StoreAndReply expense done])
     False -> (Nothing, [Answer cancelled])
-
-confirm :: Expense -> Reply
-confirm expense =
-  let
-    descriptionLine =
-      concat ["*", (Description.text . Expense.description) expense, "*\n"]
-
-    payerLine = concat
-      [ "Payed by "
-      , case (Expense.payer expense) of
-        Me   -> "me"
-        They -> "them"
-      , "\n"
-      ]
-
-    amountLine =
-      concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
-
-    splitLine =
-      concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
-  in
-    Reply
-      (concat
-        [ "Is this correct?\n\n"
-        , descriptionLine
-        , amountLine
-        , payerLine
-        , splitLine
-        ]
-      )
-      (Options ["Yes", "No"])
-
-cancelled :: Reply
-cancelled = Reply "Alright, the expense was discarded." Normal
 
 done :: Reply
 done = Reply "Done!" Normal
 
+cancelled :: Reply
+cancelled = Reply "Alright, the expense was discarded." Normal
+
 apologizing :: Reply -> Reply
 apologizing (Reply text options) =
   Reply ("Sorry, I couldn't understand that. " ++ text) options
-
-parseConfirmation :: String -> Bool
-parseConfirmation "Yes" = True
-parseConfirmation _     = False
