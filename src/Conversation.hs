@@ -26,6 +26,7 @@ data Conversation
                   , description :: Description
                   , payer :: Who
                   , amount :: Amount }
+  | AwaitingConfirmation Expense
 
 data Question
   = AskAmount
@@ -56,6 +57,7 @@ advance userMessage conversation = case conversation of
       }
     , [Answer Amount.ask]
     )
+
   AwaitingAmount preset description -> case Amount.parse userMessage of
     Just amount ->
       ( Just $ AwaitingPayer
@@ -66,6 +68,7 @@ advance userMessage conversation = case conversation of
       , [Answer Payer.ask]
       )
     Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
+
   AwaitingPayer preset description amount -> case Payer.parse userMessage of
     Just payer ->
       ( Just $ AwaitingSplit
@@ -77,11 +80,11 @@ advance userMessage conversation = case conversation of
       , [Answer (Split.ask preset)]
       )
     Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
+
   AwaitingSplit preset description payer amount ->
     case Split.parse userMessage of
       Just split ->
-        ( Nothing
-        , [ StoreAndReply
+        let expense =
               (Expense
                 { expenseDescription = description
                 , expensePayer       = payer
@@ -89,10 +92,39 @@ advance userMessage conversation = case conversation of
                 , expenseSplit       = split
                 }
               )
-              done
+        in  (Just $ AwaitingConfirmation expense, [Answer (confirm expense)])
+      Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
+
+  AwaitingConfirmation expense -> (Nothing, [StoreAndReply expense done])
+
+confirm :: Expense -> Reply
+confirm expense =
+  let descriptionLine =
+        concat ["*", (Description.text . expenseDescription) expense, "*\n"]
+
+      payerLine = concat
+        [ "Payed by "
+        , case (expensePayer expense) of
+          Me   -> "me"
+          They -> "them"
+        , "\n"
+        ]
+
+      amountLine =
+        concat ["Total: $", show $ (Amount.value . expenseAmount) expense, "\n"]
+
+      splitLine =
+        concat ["I owe ", show $ Split.myPart (expenseSplit expense), "%", "\n"]
+  in  Reply
+        (concat
+          [ "Is this correct?\n\n"
+          , descriptionLine
+          , amountLine
+          , payerLine
+          , splitLine
           ]
         )
-      Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
+        (Options ["Yes", "No"])
 
 done :: Reply
 done = Reply "Done!" Normal

@@ -13,6 +13,7 @@ instance ToJSON Message where
     object $
     [ "chat_id" .= (chatId m)
     , "text" .= (text m)
+    , "parse_mode" .= ("markdown" :: String)
     , "reply_markup" .= (replyMarkup m)
     ]
 
