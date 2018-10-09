@@ -98,10 +98,10 @@ advance userMessage conversation = case conversation of
     False -> (Nothing, [Answer cancelled])
 
 done :: Reply
-done = Reply "Done!" Normal
+done = Reply "Done! 🎉 💸" Normal
 
 cancelled :: Reply
-cancelled = Reply "Alright, the expense was discarded." Normal
+cancelled = Reply "Alright, the expense was discarded 👍" Normal
 
 apologizing :: Reply -> Reply
 apologizing (Reply text options) =

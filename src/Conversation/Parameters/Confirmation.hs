@@ -33,7 +33,7 @@ ask expense =
   in
     Reply
       (concat
-        [ "Is this correct?\n\n"
+        [ "Is this correct❓\n\n"
         , descriptionLine
         , amountLine
         , payerLine

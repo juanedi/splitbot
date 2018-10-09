@@ -11,7 +11,7 @@ newtype Description = Description
   }
 
 ask :: Reply
-ask = Reply "Please enter a description." Normal
+ask = Reply "👋 Hey! Please enter a description for the expense." Normal
 
 read :: String -> Description
 read = Description
