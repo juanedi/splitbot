@@ -7,7 +7,7 @@ system-ghc: true
 
 image:
   container:
-    base: "juanedi/splitbot-build"
+    base: "fpco/stack-build:lts-12.11"
     name: "juanedi/splitbot"
 
 ghc-options:
