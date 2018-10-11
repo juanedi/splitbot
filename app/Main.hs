@@ -2,17 +2,18 @@ module Main where
 
 import Control.Arrow ((>>>))
 import Conversation
-import Conversation.Parameters (Split(..))
+import Conversation.Parameters.Split (Split)
 import Data.Traversable (sequence)
-import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
-import qualified Settings
-import Telegram.Api (ChatId)
 import Telegram (Message)
+import Telegram.Api (ChatId)
 import Telegram.Reply (Reply)
-import qualified Telegram.Reply as Reply
-import qualified Telegram
+import qualified Conversation.Parameters.Split as Split
+import qualified Network.HTTP.Client as Http
+import qualified Settings
 import qualified Splitwise
+import qualified Telegram
+import qualified Telegram.Reply as Reply
 
 data State = State
   { http :: Http.Manager
@@ -57,7 +58,7 @@ main = do
         { telegramId  = (Telegram.Username . Settings.userATelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userASplitwiseId) settings
         }
-      , preset       = Split presetA
+      , preset       = Split.init presetA
       , conversation = Nothing
       }
     , userB     = User
@@ -65,7 +66,7 @@ main = do
         { telegramId  = (Telegram.Username . Settings.userBTelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userBSplitwiseId) settings
         }
-      , preset       = Split presetB
+      , preset       = Split.init presetB
       , conversation = Nothing
       }
     , telegram  = Telegram.init (Settings.telegramToken settings)

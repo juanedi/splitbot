@@ -7,11 +7,15 @@ module Splitwise
   )
 where
 
+import Conversation.Parameters.Split (Split)
+import Conversation.Parameters.Who
+import Data.ByteString.Char8 (pack)
 import qualified Conversation.Expense
+import qualified Conversation.Parameters.Amount as Amount
+import qualified Conversation.Parameters.Description as Description
+import qualified Conversation.Parameters.Split as Split
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
-import qualified Conversation.Parameters as Parameters
-import Data.ByteString.Char8 (pack)
 
 data State = State Token
 
@@ -33,8 +37,8 @@ createExpense
   -> IO Bool
 createExpense http (UserId currentUser) (UserId buddy) expense (State (Token token))
   = let description =
-          Parameters.text $ Conversation.Expense.description expense
-        cost = Parameters.value $ Conversation.Expense.amount expense
+          (Description.text . Conversation.Expense.description) expense
+        cost = (Amount.value . Conversation.Expense.amount) expense
         payer                          = Conversation.Expense.payer expense
         (myPaidShare, buddysPaidShare) = paidShares payer cost
         split                          = Conversation.Expense.split expense
@@ -57,13 +61,13 @@ createExpense http (UserId currentUser) (UserId buddy) expense (State (Token tok
             }
           }
 
-paidShares :: Parameters.Who -> Integer -> (Integer, Integer)
+paidShares :: Who -> Integer -> (Integer, Integer)
 paidShares payer cost = case payer of
-  Parameters.Me   -> (cost, 0)
-  Parameters.They -> (0, cost)
+  Me   -> (cost, 0)
+  They -> (0, cost)
 
-owedShares :: Parameters.Split -> Integer -> (Integer, Integer)
+owedShares :: Split -> Integer -> (Integer, Integer)
 owedShares split cost =
   let myShare =
-        round $ (fromInteger (cost * (Parameters.myPart split)) :: Double) / 100
+        round $ (fromInteger (cost * (Split.myPart split)) :: Double) / 100
   in  (myShare, cost - myShare)

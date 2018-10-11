@@ -4,13 +4,13 @@ module Conversation.Parameters.Confirmation
   ) where
 
 import Conversation.Expense (Expense)
-import qualified Conversation.Expense as Expense
+import Conversation.Parameters.Who
 import Telegram.Reply (Reply)
-import qualified Telegram.Reply as Reply
-import Conversation.Parameters
+import qualified Conversation.Expense as Expense
 import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Description as Description
 import qualified Conversation.Parameters.Split as Split
+import qualified Telegram.Reply as Reply
 
 ask :: Expense -> Reply
 ask expense =

@@ -1,19 +1,23 @@
 module Conversation.Parameters.Split
   ( Split(..)
+  , Conversation.Parameters.Split.init
   , ask
   , parse
   ) where
 
 import Control.Applicative ((<|>))
-import Conversation.Parameters.Definitions
+import Conversation.Parameters.Who
 import Data.Char (toLower)
-import Text.Trifecta
 import Telegram.Reply (Reply)
+import Text.Trifecta
 import qualified Telegram.Reply as Reply
 
 newtype Split = Split
   { myPart :: Integer
   } deriving (Show)
+
+init :: Integer -> Split
+init = Split
 
 ask :: Split -> Reply
 ask preset = Reply.withOptions
