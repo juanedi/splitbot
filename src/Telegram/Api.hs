@@ -25,6 +25,8 @@ import qualified Network.HTTP.Client as Http
 import Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import qualified Telegram.Api.SendMessage as SendMessage
+import Control.Exception as Exception
+import Data.ByteString.Lazy (ByteString)
 
 type Token = String
 
@@ -52,16 +54,24 @@ type SendMessageResult
 
 getUpdates :: Token -> Http.Manager -> Maybe Integer -> IO GetUpdatesResult
 getUpdates token manager offset = do
-  request  <- newUpdateRequest token offset
-  response <- httpLbs request manager
-  case (responseStatus >>> statusCode) response of
-    200 -> case eitherDecode (responseBody response) of
-      Left _ -> do
-        return (Left GetUpdatesDecodingError)
-      Right update -> do
-        return (Right update)
-    _ -> do
-      return (Left GetUpdatesApiError)
+  request <- newUpdateRequest token offset
+  result  <- runRequest request manager
+  case result of
+    Left  _err     -> return (Left GetUpdatesApiError)
+    Right response -> case (statusCode . responseStatus) response of
+      200 -> case eitherDecode (responseBody response) of
+        Left _ -> do
+          return (Left GetUpdatesDecodingError)
+        Right update -> do
+          return (Right update)
+      _ -> do
+        return (Left GetUpdatesApiError)
+
+runRequest
+  :: Http.Request
+  -> Http.Manager
+  -> IO (Either Http.HttpException (Http.Response ByteString))
+runRequest request manager = Exception.try (Http.httpLbs request manager)
 
 newUpdateRequest :: Token -> Maybe Integer -> IO Http.Request
 newUpdateRequest token offset =
