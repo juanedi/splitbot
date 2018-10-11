@@ -7,26 +7,25 @@ module Telegram.Api (
   GetUpdatesError(..)
   ) where
 
-import Control.Arrow ((>>>))
-import Data.Aeson (eitherDecode, encode)
-import Network.HTTP.Client
-  ( RequestBody(..)
-  , httpLbs
-  , method
-  , parseRequest_
-  , requestBody
-  , requestHeaders
-  , responseBody
-  , responseStatus
-  )
+import           Control.Arrow ((>>>))
+import           Control.Exception as Exception
+import           Data.Aeson (eitherDecode, encode)
+import           Data.ByteString.Lazy (ByteString)
+import           Network.HTTP.Client ( RequestBody(..)
+                                     , httpLbs
+                                     , method
+                                     , parseRequest_
+                                     , requestBody
+                                     , requestHeaders
+                                     , responseBody
+                                     , responseStatus
+                                     )
 import qualified Network.HTTP.Client as Http
-import Network.HTTP.Types.Status (statusCode)
-import Telegram.Reply (Reply)
-import qualified Telegram.Reply as Reply
+import           Network.HTTP.Types.Status (statusCode)
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import qualified Telegram.Api.SendMessage as SendMessage
-import Control.Exception as Exception
-import Data.ByteString.Lazy (ByteString)
+import           Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 
 type Token = String
 

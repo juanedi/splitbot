@@ -6,7 +6,7 @@ module Conversation.Parameters.Description
   , readConfirmation
   ) where
 
-import Telegram.Reply (Reply)
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 newtype Description = Description

@@ -7,18 +7,18 @@ module Conversation
   , start
   ) where
 
-import Conversation.Expense (Expense)
-import Conversation.Parameters.Amount (Amount)
-import Conversation.Parameters.Description (Description)
-import Conversation.Parameters.Split (Split)
-import Conversation.Parameters.Who
-import Telegram.Reply (Reply)
+import           Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
+import           Conversation.Parameters.Amount (Amount)
 import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Confirmation as Confirmation
+import           Conversation.Parameters.Description (Description)
 import qualified Conversation.Parameters.Description as Description
 import qualified Conversation.Parameters.Payer as Payer
+import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
+import           Conversation.Parameters.Who
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 data Conversation

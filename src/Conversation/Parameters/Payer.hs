@@ -3,9 +3,9 @@ module Conversation.Parameters.Payer
   , parse
   ) where
 
-import Conversation.Parameters.Who
-import Data.Char (toLower)
-import Telegram.Reply (Reply)
+import           Conversation.Parameters.Who
+import           Data.Char (toLower)
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 ask :: Reply

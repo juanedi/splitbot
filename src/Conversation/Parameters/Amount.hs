@@ -4,9 +4,9 @@ module Conversation.Parameters.Amount
   , parse
   ) where
 
-import Telegram.Reply (Reply)
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
-import Text.Read (readMaybe)
+import           Text.Read (readMaybe)
 
 newtype Amount = Amount
   { value :: Integer

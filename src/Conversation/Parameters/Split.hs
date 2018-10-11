@@ -5,12 +5,12 @@ module Conversation.Parameters.Split
   , parse
   ) where
 
-import Control.Applicative ((<|>))
-import Conversation.Parameters.Who
-import Data.Char (toLower)
-import Telegram.Reply (Reply)
-import Text.Trifecta
+import           Control.Applicative ((<|>))
+import           Conversation.Parameters.Who
+import           Data.Char (toLower)
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
+import           Text.Trifecta
 
 newtype Split = Split
   { myPart :: Integer

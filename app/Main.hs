@@ -1,18 +1,18 @@
 module Main where
 
-import Control.Arrow ((>>>))
-import Conversation
-import Conversation.Parameters.Split (Split)
-import Data.Traversable (sequence)
-import Network.HTTP.Client.TLS (newTlsManager)
-import Telegram (Message)
-import Telegram.Api (ChatId)
-import Telegram.Reply (Reply)
+import           Control.Arrow ((>>>))
+import           Conversation
+import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
+import           Data.Traversable (sequence)
 import qualified Network.HTTP.Client as Http
+import           Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
 import qualified Splitwise
 import qualified Telegram
+import           Telegram (Message)
+import           Telegram.Api (ChatId)
+import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 data State = State

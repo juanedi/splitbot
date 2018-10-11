@@ -6,11 +6,11 @@ module Splitwise.Api (
   createExpense
   ) where
 
-import Data.Aeson (ToJSON, (.=), object, toJSON)
-import Data.ByteString (ByteString)
-import Network.HTTP.Client (Request, RequestBody(..))
+import           Data.Aeson (ToJSON, (.=), object, toJSON)
 import qualified Data.Aeson as Aeson
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import           Network.HTTP.Client (Request, RequestBody(..))
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Types.Status as Status
 

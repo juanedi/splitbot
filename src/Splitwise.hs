@@ -7,13 +7,13 @@ module Splitwise
   )
 where
 
-import Conversation.Parameters.Split (Split)
-import Conversation.Parameters.Who
-import Data.ByteString.Char8 (pack)
 import qualified Conversation.Expense
 import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Description as Description
+import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
+import           Conversation.Parameters.Who
+import           Data.ByteString.Char8 (pack)
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
 
@@ -23,10 +23,8 @@ data UserId = UserId Integer
 
 data Token = Token String
 
-
 init :: Token -> State
 init = State
-
 
 createExpense
   :: Http.Manager
