@@ -6,24 +6,25 @@ module Conversation.Parameters.Description
   , readConfirmation
   ) where
 
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 
 newtype Description = Description
   { text :: String
   }
 
 ask :: Reply
-ask = Reply "👋 Hey! Please enter a description for the expense report." Normal
+ask = Reply.plain "👋 Hey! Please enter a description for the expense report."
 
 confirm :: Description -> Reply
-confirm (Description description) = Reply
+confirm (Description description) = Reply.withOptions
   (concat
     [ "👋 Hey! We'll create an expense report for \""
     , description
     , "\". Is that correct?"
     ]
   )
-  (Options ["Yes", "No"])
+  ["Yes", "No"]
 
 
 read :: String -> Description

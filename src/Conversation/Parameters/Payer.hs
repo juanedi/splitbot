@@ -5,10 +5,11 @@ module Conversation.Parameters.Payer
 
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 
 ask :: Reply
-ask = Reply "Who paid?" (Options ["Me", "They"])
+ask = Reply.withOptions "Who paid?" ["Me", "They"]
 
 parse :: String -> Maybe Who
 parse str = case (map toLower) str of

@@ -7,19 +7,18 @@ module Conversation.Parameters.Split
 import Control.Applicative ((<|>))
 import Conversation.Parameters.Definitions
 import Data.Char (toLower)
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
 import Text.Trifecta
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 
 newtype Split = Split
   { myPart :: Integer
   } deriving (Show)
 
 ask :: Split -> Reply
-ask preset = Reply
+ask preset = Reply.withOptions
   "How will you split it?"
-  (Options
-    ["Evenly", "All on me", "All on them", show (myPart preset) ++ "% on me"]
-  )
+  ["Evenly", "All on me", "All on them", show (myPart preset) ++ "% on me"]
 
 parse :: String -> Maybe Split
 parse str = case parseReply str of

@@ -4,7 +4,8 @@ module Conversation.Parameters.Amount
   , parse
   ) where
 
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 import Text.Read (readMaybe)
 
 newtype Amount = Amount
@@ -12,7 +13,7 @@ newtype Amount = Amount
   }
 
 ask :: Reply
-ask = Reply "How much?" Normal
+ask = Reply.plain "How much?"
 
 parse :: String -> Maybe Amount
 parse str = fmap Amount $ (readMaybe str)

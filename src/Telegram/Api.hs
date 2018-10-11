@@ -2,8 +2,6 @@ module Telegram.Api (
   getUpdates,
   sendMessage,
   ChatId(..),
-  Reply(..),
-  ReplyKeyboard(..),
   Token,
   GetUpdatesResult,
   GetUpdatesError(..)
@@ -23,20 +21,14 @@ import Network.HTTP.Client
   )
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Types.Status (statusCode)
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import qualified Telegram.Api.SendMessage as SendMessage
 import Control.Exception as Exception
 import Data.ByteString.Lazy (ByteString)
 
 type Token = String
-
-data Reply =
-  Reply String
-        ReplyKeyboard
-
-data ReplyKeyboard
-  = Normal
-  | Options [String]
 
 data ChatId =
   ChatId Integer
@@ -100,17 +92,12 @@ sendMessage token manager chatId reply = do
   return (status == 200)
 
 newSendRequest :: Token -> ChatId -> Reply -> IO Http.Request
-newSendRequest token (ChatId chatId) (Reply text keyboard) =
+newSendRequest token (ChatId chatId) reply =
   return $ (parseRequest_ (apiUrl token "sendMessage"))
     { method         = "POST"
     , requestHeaders = [("Content-Type", "application/json")]
     , requestBody    = (RequestBodyLBS . encode) message
     }
-  where message = SendMessage.Message chatId text (replyMarkup keyboard)
-
-replyMarkup :: ReplyKeyboard -> SendMessage.ReplyMarkup
-replyMarkup keyboard = case keyboard of
-  Normal -> SendMessage.ReplyKeyboardRemove
-  Options opts ->
-    SendMessage.InlineKeyboard (map (\o -> [o]) opts) -- display options as a column
-                                                      False True
+ where
+  message =
+    SendMessage.Message chatId (Reply.text reply) (Reply.keyboardMarkup reply)

@@ -13,11 +13,8 @@ module Telegram
 import Control.Concurrent (threadDelay)
 import qualified Network.HTTP.Client as Http
 import qualified Telegram.Api.GetUpdates as GetUpdates
-import Telegram.Api
- ( Token
- , ChatId(..)
- , Reply(..)
- )
+import Telegram.Api ( Token , ChatId(..))
+import Telegram.Reply (Reply)
 import qualified Telegram.Api as Api
 
 data State = State

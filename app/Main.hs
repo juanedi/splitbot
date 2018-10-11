@@ -7,8 +7,10 @@ import Data.Traversable (sequence)
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Settings
-import Telegram.Api (ChatId, Reply(..))
+import Telegram.Api (ChatId)
 import Telegram (Message)
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 import qualified Telegram
 import qualified Splitwise
 
@@ -146,8 +148,8 @@ runEffect state chatState effect =
             else return ()
 
 sendMessage :: Http.Manager -> Telegram.State -> ChatId -> Reply -> IO ()
-sendMessage http telegram chatId reply@(Reply text _) = do
-  putStrLn $ ">> " ++ text
+sendMessage http telegram chatId reply = do
+  putStrLn $ ">> " ++ (Reply.text reply)
   Telegram.sendMessage http telegram chatId reply
 
 getUser :: UserId -> State -> User

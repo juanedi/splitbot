@@ -5,7 +5,8 @@ module Conversation.Parameters.Confirmation
 
 import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 import Conversation.Parameters
 import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Description as Description
@@ -31,7 +32,7 @@ ask expense =
     splitLine =
       concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
   in
-    Reply
+    Reply.withOptions
       (concat
         [ "Is this correct❓\n\n"
         , descriptionLine
@@ -40,7 +41,7 @@ ask expense =
         , splitLine
         ]
       )
-      (Options ["Yes", "No"])
+      ["Yes", "No"]
 
 read :: String -> Bool
 read "Yes" = True

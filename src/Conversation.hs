@@ -15,7 +15,8 @@ import qualified Conversation.Parameters.Confirmation as Confirmation
 import qualified Conversation.Parameters.Description as Description
 import qualified Conversation.Parameters.Payer as Payer
 import qualified Conversation.Parameters.Split as Split
-import Telegram.Api (Reply(..), ReplyKeyboard(..))
+import Telegram.Reply (Reply)
+import qualified Telegram.Reply as Reply
 
 data Conversation
   = -- Initial state when user first contacts the bot via the '/start' command
@@ -90,7 +91,7 @@ advance userMessage conversation = case conversation of
         }
       , [Answer Payer.ask]
       )
-    Nothing -> (Just conversation, [Answer $ apologizing Amount.ask])
+    Nothing -> (Just conversation, [Answer $ Reply.apologizing Amount.ask])
 
   AwaitingPayer preset description amount -> case Payer.parse userMessage of
     Just payer ->
@@ -102,7 +103,7 @@ advance userMessage conversation = case conversation of
         }
       , [Answer (Split.ask preset)]
       )
-    Nothing -> (Just conversation, [Answer $ apologizing Payer.ask])
+    Nothing -> (Just conversation, [Answer $ Reply.apologizing Payer.ask])
 
   AwaitingSplit preset description payer amount ->
     case Split.parse userMessage of
@@ -118,18 +119,15 @@ advance userMessage conversation = case conversation of
         in  ( Just $ AwaitingConfirmation expense
             , [Answer (Confirmation.ask expense)]
             )
-      Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
+      Nothing ->
+        (Just conversation, [Answer $ Reply.apologizing (Split.ask preset)])
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
     then (Nothing, [StoreAndReply expense done])
     else (Nothing, [Answer cancelled])
 
 done :: Reply
-done = Reply "Done! 🎉 💸" Normal
+done = Reply.plain "Done! 🎉 💸"
 
 cancelled :: Reply
-cancelled = Reply "Alright, the expense was discarded 👍" Normal
-
-apologizing :: Reply -> Reply
-apologizing (Reply text options) =
-  Reply ("Sorry, I couldn't understand that. " ++ text) options
+cancelled = Reply.plain "Alright, the expense was discarded 👍"
