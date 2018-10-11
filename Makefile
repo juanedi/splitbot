@@ -1,3 +1,6 @@
+build-watch:
+	stack build --file-watch
+
 build-linux:
 	stack --stack-yaml linux/stack.yml build --copy-bins
 

@@ -18,17 +18,30 @@ import qualified Conversation.Parameters.Split as Split
 import Telegram.Api (Reply(..), ReplyKeyboard(..))
 
 data Conversation
-  = AwaitingDescription { preset :: Split }
-  | AwaitingAmount { preset :: Split
-                   , description :: Description
-                   }
-  | AwaitingPayer { preset :: Split
-                  , description :: Description
-                  , amount :: Amount }
-  | AwaitingSplit { preset :: Split
-                  , description :: Description
-                  , payer :: Who
-                  , amount :: Amount }
+  = -- Initial state when user first contacts the bot via the '/start' command
+    AwaitingDescription
+    { preset :: Split
+    }
+  | -- Initial state when the user contacts the bot sending a description
+    AwaitingInitialConfirmation
+    { preset :: Split
+    , description :: Description
+    }
+  | AwaitingAmount
+    { preset :: Split
+    , description :: Description
+    }
+  | AwaitingPayer
+    { preset :: Split
+    , description :: Description
+    , amount :: Amount
+    }
+  | AwaitingSplit
+    { preset :: Split
+    , description :: Description
+    , payer :: Who
+    , amount :: Amount
+    }
   | AwaitingConfirmation Expense
 
 data Question
@@ -41,8 +54,14 @@ data Effect
   | StoreAndReply Expense
                   Reply
 
-start :: Split -> (Maybe Conversation, [Effect])
-start preset = (Just (AwaitingDescription preset), [Answer Description.ask])
+start :: String -> Split -> (Maybe Conversation, [Effect])
+start message preset = case message of
+  "/start" -> (Just (AwaitingDescription preset), [Answer (Description.ask)])
+  _ ->
+    ( Just (AwaitingInitialConfirmation preset description)
+    , [Answer (Description.confirm description)]
+    )
+    where description = Description.read message
 
 advance :: String -> Conversation -> (Maybe Conversation, [Effect])
 advance userMessage conversation = case conversation of
@@ -53,6 +72,14 @@ advance userMessage conversation = case conversation of
       }
     , [Answer Amount.ask]
     )
+
+  AwaitingInitialConfirmation preset description ->
+    if Description.readConfirmation userMessage
+      then
+        ( Just $ AwaitingAmount {preset = preset, description = description}
+        , [Answer Amount.ask]
+        )
+      else (Nothing, [Answer cancelled])
 
   AwaitingAmount preset description -> case Amount.parse userMessage of
     Just amount ->
@@ -93,9 +120,9 @@ advance userMessage conversation = case conversation of
             )
       Nothing -> (Just conversation, [Answer $ apologizing (Split.ask preset)])
 
-  AwaitingConfirmation expense -> case Confirmation.read userMessage of
-    True  -> (Nothing, [StoreAndReply expense done])
-    False -> (Nothing, [Answer cancelled])
+  AwaitingConfirmation expense -> if Confirmation.read userMessage
+    then (Nothing, [StoreAndReply expense done])
+    else (Nothing, [Answer cancelled])
 
 done :: Reply
 done = Reply "Done! 🎉 💸" Normal

@@ -99,12 +99,13 @@ matchUserId state uname
 processMessage :: State -> UserId -> Message -> IO (State)
 processMessage state userId message
   = let
+      messageText                    = Telegram.text message
       currentUser                    = getUser userId state
       otherUser                      = getUser (otherUserId userId) state
       currentConversation            = conversation currentUser
       (updatedConversation, effects) = case currentConversation of
-        Nothing -> start (preset currentUser)
-        Just c  -> advance (Telegram.text message) c
+        Nothing -> start messageText (preset currentUser)
+        Just c  -> advance messageText c
       updatedState = updateUser
         userId
         (currentUser { conversation = updatedConversation })
