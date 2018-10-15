@@ -24,7 +24,7 @@ data State = State
   , userA :: User
   , userB :: User
   , telegramToken :: String
-  , splitwise :: Splitwise.State
+  , splitwiseToken :: Splitwise.Token
   }
 
 data User = User
@@ -61,8 +61,8 @@ initState settings httpManager
       presetB = 100 - presetA
     in
       State
-        { http          = httpManager
-        , userA         = User
+        { http           = httpManager
+        , userA          = User
           { identity     = UserIdentity
             { telegramId  = ( Telegram.Username.fromString
                             . Settings.userATelegramId
@@ -74,7 +74,7 @@ initState settings httpManager
           , preset       = Split.init presetA
           , conversation = Nothing
           }
-        , userB         = User
+        , userB          = User
           { identity     = UserIdentity
             { telegramId  = ( Telegram.Username.fromString
                             . Settings.userBTelegramId
@@ -86,9 +86,8 @@ initState settings httpManager
           , preset       = Split.init presetB
           , conversation = Nothing
           }
-        , telegramToken = Settings.telegramToken settings
-        , splitwise     = Splitwise.init
-          $ (Splitwise.Token . Settings.splitwiseToken) settings
+        , telegramToken  = Settings.telegramToken settings
+        , splitwiseToken = Splitwise.Token (Settings.splitwiseToken settings)
         }
 
 loop :: Queue Message -> State -> IO ()
@@ -149,8 +148,7 @@ runEffects state chatState effects = do
 
 runEffect :: State -> ChatState -> Effect -> IO ()
 runEffect state chatState effect =
-  let httpManager    = http state
-      splitwiseState = splitwise state
+  let httpManager = http state
   in  case effect of
         Answer reply -> Telegram.sendMessage httpManager
                                              (telegramToken state)
@@ -162,7 +160,7 @@ runEffect state chatState effect =
             (splitwiseId (currentUser chatState))
             (splitwiseId (buddy chatState))
             expense
-            splitwiseState
+            (splitwiseToken state)
           if sucess
             then Telegram.sendMessage httpManager
                                       (telegramToken state)
