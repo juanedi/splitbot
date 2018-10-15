@@ -5,7 +5,7 @@ import qualified Network.HTTP.Client as Http
 import           Network.HTTP.Client.TLS (newTlsManager)
 import qualified Queue
 import           Queue (Queue)
-import           Telegram.Api (Token)
+import qualified Telegram as Telegram
 import qualified Telegram.Api as Api
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import           Telegram.Api.Update (Update)
@@ -15,7 +15,7 @@ import qualified Telegram.Message as Message
 
 data State = State
   { http :: Http.Manager
-  , token :: String
+  , token :: Telegram.Token
   , fetchState :: FetchState
   }
 
@@ -24,7 +24,7 @@ data FetchState
              [Update]
   | NeedMore (Maybe Integer)
 
-run :: Queue Message -> Token -> IO ()
+run :: Queue Message -> Telegram.Token -> IO ()
 run queue token = do
   http <- newTlsManager
   let state = State {http = http, token = token, fetchState = NeedMore Nothing}
@@ -55,9 +55,12 @@ getMessage state = case fetchState state of
         getMessage state
 
 requestUpdates
-  :: Token -> Http.Manager -> Maybe Integer -> IO (GetUpdates.UpdateResponse)
+  :: Telegram.Token
+  -> Http.Manager
+  -> Maybe Integer
+  -> IO (GetUpdates.UpdateResponse)
 requestUpdates token manager lastUpdateId = do
-  result <- Api.getUpdates token manager ((+ 1) <$> lastUpdateId)
+  result <- Telegram.getUpdates manager token ((+ 1) <$> lastUpdateId)
   case result of
     (Left Api.GetUpdatesApiError) -> do
       putStrLn "Error contacting telegram for updates. Will retry soon."

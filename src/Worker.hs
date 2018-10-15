@@ -23,7 +23,7 @@ data State = State
   { http :: Http.Manager
   , userA :: User
   , userB :: User
-  , telegramToken :: String
+  , telegramToken :: Telegram.Token
   , splitwiseToken :: Splitwise.Token
   }
 
@@ -86,8 +86,8 @@ initState settings httpManager
           , preset       = Split.init presetB
           , conversation = Nothing
           }
-        , telegramToken  = Settings.telegramToken settings
-        , splitwiseToken = Splitwise.Token (Settings.splitwiseToken settings)
+        , telegramToken  = Telegram.Token $ Settings.telegramToken settings
+        , splitwiseToken = Splitwise.Token $ Settings.splitwiseToken settings
         }
 
 loop :: Queue Message -> State -> IO ()
