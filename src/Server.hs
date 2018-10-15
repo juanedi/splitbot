@@ -3,17 +3,18 @@ module Server (run) where
 
 import           Control.Applicative
 import           Control.Monad.Reader
-import           Data.String
+import qualified Data.Aeson as Aeson
 import           Data.Text.Lazy (Text)
 import           Network.Wai.Middleware.RequestLogger
 import           Prelude
 import qualified Queue
 import           Queue (Queue)
+import           Telegram
 import           Web.Scotty.Trans
 
 newtype Config =
   Config
-    { queue :: Queue String
+    { queue :: Queue Telegram.Message
     }
 
 newtype ConfigM a =
@@ -22,13 +23,13 @@ newtype ConfigM a =
     }
     deriving ( Applicative, Functor, Monad, MonadIO, MonadReader Config)
 
-initState :: Queue String -> Config
+initState :: Queue Telegram.Message -> Config
 initState q = Config {queue = q}
 
 runIO :: Config -> ConfigM a -> IO a
 runIO config m = runReaderT (runConfigM m) config
 
-run :: Queue String -> Int -> IO ()
+run :: Queue Telegram.Message -> Int -> IO ()
 run q port = do
   let config = initState q
   scottyT port (runIO config) app
@@ -36,7 +37,11 @@ run q port = do
 app :: ScottyT Text ConfigM ()
 app = do
   middleware logStdoutDev
-  get "/:msg" $ do
+  post "/" $ do
     config <- lift ask
-    msg    <- param "msg"
-    liftIO $ Queue.enqueue (queue config) msg
+    rd     <- bodyReader
+    body   <- liftIO rd
+    case Aeson.eitherDecodeStrict body of
+      Left _ -> liftIO $ putStrLn "Decoding error"
+      Right update ->
+        liftIO $ Queue.enqueue (queue config) (Telegram.toMessage update)

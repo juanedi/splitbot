@@ -2,6 +2,7 @@ module Telegram
   ( Telegram.init
   , getMessage
   , sendMessage
+  , toMessage
   , username
   , chatId
   , text
@@ -15,6 +16,8 @@ import qualified Network.HTTP.Client as Http
 import           Telegram.Api ( Token , ChatId(..))
 import qualified Telegram.Api as Api
 import qualified Telegram.Api.GetUpdates as GetUpdates
+import           Telegram.Api.Update (Update)
+import qualified Telegram.Api.Update as Update
 import           Telegram.Reply (Reply)
 
 data State = State
@@ -23,8 +26,8 @@ data State = State
   }
 
 data FetchState
-  = Buffered GetUpdates.Update
-             [GetUpdates.Update]
+  = Buffered Update
+             [Update]
   | NeedMore (Maybe Integer)
 
 data Username =
@@ -51,8 +54,7 @@ getMessage http state = case fetchState state of
     ( toMessage nextUpdate
     , case rest of
       u : us -> state { fetchState = Buffered u us }
-      [] ->
-        state { fetchState = NeedMore $ Just $ GetUpdates.updateId nextUpdate }
+      [] -> state { fetchState = NeedMore $ Just $ Update.updateId nextUpdate }
     )
   NeedMore lastUpdateId -> do
     response <- requestUpdates (token state) http lastUpdateId
@@ -64,14 +66,14 @@ getMessage http state = case fetchState state of
         threadDelay (1 * 1000 * 1000)
         getMessage http state
 
-toMessage :: GetUpdates.Update -> Message
+toMessage :: Update -> Message
 toMessage update =
-  let message = GetUpdates.message update
-      user    = GetUpdates.from message
+  let message = Update.message update
+      user    = Update.from message
   in  Message
-        { chatId   = ChatId (GetUpdates.id user)
-        , username = Username (GetUpdates.username user)
-        , text     = GetUpdates.text message
+        { chatId   = ChatId (Update.id user)
+        , username = Username (Update.username user)
+        , text     = Update.text message
         }
 
 requestUpdates
