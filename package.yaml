@@ -28,6 +28,12 @@ dependencies:
 - http-client-tls
 - aeson
 - trifecta
+- text
+- wai-extra
+- mtl
+- stm
+- scotty
+- async
 
 library:
   source-dirs: src
@@ -36,6 +42,16 @@ executables:
   splitbot-exe:
     main:                Main.hs
     source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - splitbot
+
+  splitbot-server:
+    main:                Main.hs
+    source-dirs:         app/server
     ghc-options:
     - -threaded
     - -rtsopts
