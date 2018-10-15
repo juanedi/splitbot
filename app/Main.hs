@@ -11,6 +11,7 @@ import qualified Settings
 import qualified Splitwise
 import qualified Telegram
 import           Telegram (Message)
+import qualified Telegram.Api
 import           Telegram.Api (ChatId)
 import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
@@ -19,6 +20,7 @@ data State = State
   { http :: Http.Manager
   , userA :: User
   , userB :: User
+  , telegramToken :: Telegram.Api.Token
   , telegram :: Telegram.State
   , splitwise :: Splitwise.State
   }
@@ -52,8 +54,8 @@ main = do
   let presetA = Settings.userAPreset settings
       presetB = 100 - presetA
   runServer $ State
-    { http      = httpManager
-    , userA     = User
+    { http          = httpManager
+    , userA         = User
       { identity     = UserIdentity
         { telegramId  = (Telegram.Username . Settings.userATelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userASplitwiseId) settings
@@ -61,7 +63,7 @@ main = do
       , preset       = Split.init presetA
       , conversation = Nothing
       }
-    , userB     = User
+    , userB         = User
       { identity     = UserIdentity
         { telegramId  = (Telegram.Username . Settings.userBTelegramId) settings
         , splitwiseId = (Splitwise.UserId . Settings.userBSplitwiseId) settings
@@ -69,8 +71,9 @@ main = do
       , preset       = Split.init presetB
       , conversation = Nothing
       }
-    , telegram  = Telegram.init (Settings.telegramToken settings)
-    , splitwise = Splitwise.init
+    , telegramToken = Settings.telegramToken settings
+    , telegram      = Telegram.init
+    , splitwise     = Splitwise.init
       $ (Splitwise.Token . Settings.splitwiseToken) settings
     }
 
@@ -88,8 +91,8 @@ runServer state = do
 getMessage :: State -> IO (Message, State)
 getMessage state = do
   let manager = http state
-  (message, newTelegramState) <- (telegram >>> Telegram.getMessage manager)
-    state
+  (message, newTelegramState) <-
+    (telegram >>> Telegram.getMessage manager (telegramToken state)) state
   putStrLn $ "<< " ++ (Telegram.text message)
   return $ (message, state { telegram = newTelegramState })
 
@@ -132,11 +135,11 @@ runEffects state chatState effects = do
 runEffect :: State -> ChatState -> Effect -> IO ()
 runEffect state chatState effect =
   let httpManager    = http state
-      telegramState  = telegram state
+      tgToken        = telegramToken state
       splitwiseState = splitwise state
   in  case effect of
         Answer reply ->
-          sendMessage httpManager telegramState (chatId chatState) reply
+          sendMessage httpManager tgToken (chatId chatState) reply
         StoreAndReply expense reply -> do
           sucess <- Splitwise.createExpense
             httpManager
@@ -145,13 +148,13 @@ runEffect state chatState effect =
             expense
             splitwiseState
           if sucess
-            then sendMessage httpManager telegramState (chatId chatState) reply
+            then sendMessage httpManager tgToken (chatId chatState) reply
             else return ()
 
-sendMessage :: Http.Manager -> Telegram.State -> ChatId -> Reply -> IO ()
-sendMessage http telegram chatId reply = do
+sendMessage :: Http.Manager -> Telegram.Api.Token -> ChatId -> Reply -> IO ()
+sendMessage http token chatId reply = do
   putStrLn $ ">> " ++ (Reply.text reply)
-  Telegram.sendMessage http telegram chatId reply
+  Telegram.sendMessage http token chatId reply
 
 getUser :: UserId -> State -> User
 getUser userId = case userId of

@@ -20,12 +20,7 @@ import           Telegram.Api.Update (Update)
 import qualified Telegram.Api.Update as Update
 import           Telegram.Reply (Reply)
 
-data State = State
-  { token :: Token
-  , fetchState :: FetchState
-  }
-
-data FetchState
+data State
   = Buffered Update
              [Update]
   | NeedMore (Maybe Integer)
@@ -45,26 +40,26 @@ data Message = Message
   , text :: String
   }
 
-init :: Token -> State
-init token = State {token = token, fetchState = NeedMore Nothing}
+init :: State
+init = NeedMore Nothing
 
-getMessage :: Http.Manager -> State -> IO (Message, State)
-getMessage http state = case fetchState state of
+getMessage :: Http.Manager -> Token -> State -> IO (Message, State)
+getMessage http token state = case state of
   Buffered nextUpdate rest -> return
     ( toMessage nextUpdate
     , case rest of
-      u : us -> state { fetchState = Buffered u us }
-      [] -> state { fetchState = NeedMore $ Just $ Update.updateId nextUpdate }
+      u : us -> (Buffered u us)
+      []     -> (NeedMore $ Just $ Update.updateId nextUpdate)
     )
   NeedMore lastUpdateId -> do
-    response <- requestUpdates (token state) http lastUpdateId
+    response <- requestUpdates token http lastUpdateId
     case GetUpdates.result response of
       u : us -> do
-        getMessage http $ state { fetchState = Buffered u us }
+        getMessage http token (Buffered u us)
       [] -> do
         putStrLn "No updates found! Will retry in a bit"
         threadDelay (1 * 1000 * 1000)
-        getMessage http state
+        getMessage http token state
 
 toMessage :: Update -> Message
 toMessage update =
@@ -89,7 +84,7 @@ requestUpdates token manager lastUpdateId = do
       requestUpdates token manager ((+ 1) <$> lastUpdateId)
     (Right updates) -> return updates
 
-sendMessage :: Http.Manager -> State -> ChatId -> Reply -> IO ()
-sendMessage http state chatId reply =
+sendMessage :: Http.Manager -> Token -> ChatId -> Reply -> IO ()
+sendMessage http token chatId reply =
   -- TODO: handle error
-  Api.sendMessage (token state) http chatId reply >> return ()
+  Api.sendMessage token http chatId reply >> return ()
