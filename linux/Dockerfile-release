@@ -15,4 +15,4 @@ WORKDIR /opt/app
 COPY ./linux/_build/splitbot-polling /opt/app
 COPY ./linux/_build/splitbot-server /opt/app
 
-CMD /opt/app/splitbot-exe
+CMD /opt/app/splitbot-server
