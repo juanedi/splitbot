@@ -5,7 +5,7 @@ import           Telegram.Api (ChatId(..), GetUpdatesResult)
 import qualified Telegram.Api as Api
 import           Telegram.Reply (Reply)
 
-data Token = Token String
+newtype Token = Token String
 
 getUpdates :: Http.Manager -> Token -> Maybe Integer -> IO GetUpdatesResult
 getUpdates http (Token token) offset = Api.getUpdates token http offset

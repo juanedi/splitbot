@@ -15,9 +15,9 @@ import           Data.ByteString.Char8 (pack)
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
 
-data UserId = UserId Integer
+newtype UserId = UserId Integer
 
-data Token = Token String
+newtype Token = Token String
 
 createExpense
   :: Http.Manager
