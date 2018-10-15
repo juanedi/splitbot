@@ -39,16 +39,6 @@ library:
   source-dirs: src
 
 executables:
-  splitbot-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - splitbot
-
   splitbot-polling:
     main:                Main.hs
     source-dirs:         app/polling
