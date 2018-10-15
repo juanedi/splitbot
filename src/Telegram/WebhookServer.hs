@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
-module Server (run) where
+module Telegram.WebhookServer (run) where
 
 import           Control.Applicative
 import           Control.Monad.Reader
