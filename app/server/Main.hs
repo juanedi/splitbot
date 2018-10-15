@@ -12,5 +12,8 @@ main = do
   queue    <- Queue.new
   _        <- concurrently
     (Worker.run settings queue)
-    (Telegram.WebhookServer.run queue (Settings.telegramToken settings) 3000)
+    (Telegram.WebhookServer.run queue
+                                (Settings.telegramToken settings)
+                                (Settings.port settings)
+    )
   return ()
