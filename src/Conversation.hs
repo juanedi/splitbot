@@ -55,8 +55,7 @@ data Question
 
 data Effect
   = Answer Reply
-  | StoreAndReply Expense
-                  Reply
+  | Done Expense
 
 start :: String -> Split -> (Maybe Conversation, [Effect])
 start message preset = case message of
@@ -126,11 +125,8 @@ advance userMessage conversation = case conversation of
         (Just conversation, [Answer $ Reply.apologizing (Split.ask preset)])
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then (Nothing, [StoreAndReply expense done])
+    then (Nothing, [Done expense])
     else (Nothing, [Answer cancelled])
-
-done :: Reply
-done = Reply.plain "Done! 🎉 💸"
 
 cancelled :: Reply
 cancelled = Reply.plain "Alright, the expense was discarded 👍"

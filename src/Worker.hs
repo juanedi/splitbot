@@ -15,6 +15,7 @@ import qualified Telegram
 import           Telegram.Api (ChatId)
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
+import qualified Telegram.Reply as Reply
 import qualified Telegram.Username
 import           Telegram.Username (Username)
 
@@ -155,7 +156,7 @@ runEffect state chatState effect =
                                              (telegramToken state)
                                              (chatId chatState)
                                              reply
-        StoreAndReply expense reply -> do
+        Done expense -> do
           sucess <- Splitwise.createExpense
             httpManager
             (splitwiseId (currentUser chatState))
@@ -166,7 +167,7 @@ runEffect state chatState effect =
             then Telegram.sendMessage httpManager
                                       (telegramToken state)
                                       (chatId chatState)
-                                      reply
+                                      (Reply.plain "Done! 🎉 💸")
             else return ()
 
 getUser :: UserId -> State -> User
