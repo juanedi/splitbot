@@ -1,4 +1,4 @@
-module Worker where
+module Worker (run) where
 
 import qualified Conversation
 import           Conversation (Conversation, Effect(..))
