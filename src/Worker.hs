@@ -12,8 +12,11 @@ import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
-import           Telegram (Message)
 import           Telegram.Api (ChatId)
+import           Telegram.Message (Message)
+import qualified Telegram.Message as Message
+import qualified Telegram.Username
+import           Telegram.Username (Username)
 
 data State = State
   { http :: Http.Manager
@@ -30,7 +33,7 @@ data User = User
   }
 
 data UserIdentity = UserIdentity
-  { telegramId :: Telegram.Username
+  { telegramId :: Telegram.Username.Username
   , splitwiseId :: Splitwise.UserId
   }
 
@@ -60,7 +63,9 @@ initState settings httpManager
         { http          = httpManager
         , userA         = User
           { identity     = UserIdentity
-            { telegramId  = (Telegram.Username . Settings.userATelegramId)
+            { telegramId  = ( Telegram.Username.fromString
+                            . Settings.userATelegramId
+                            )
               settings
             , splitwiseId = (Splitwise.UserId . Settings.userASplitwiseId)
               settings
@@ -70,7 +75,9 @@ initState settings httpManager
           }
         , userB         = User
           { identity     = UserIdentity
-            { telegramId  = (Telegram.Username . Settings.userBTelegramId)
+            { telegramId  = ( Telegram.Username.fromString
+                            . Settings.userBTelegramId
+                            )
               settings
             , splitwiseId = (Splitwise.UserId . Settings.userBSplitwiseId)
               settings
@@ -91,7 +98,7 @@ loop queue state = do
 
 processMessage :: State -> Message -> IO State
 processMessage state message = do
-  let username    = Telegram.username message
+  let username    = Message.username message
       maybeUserId = matchUserId state username
   case maybeUserId of
     Nothing -> do
@@ -106,7 +113,7 @@ reply state userId message
       currentUser                    = getUser userId state
 
       (updatedConversation, effects) = advanceConversation
-        (Telegram.text message)
+        (Message.text message)
         (preset currentUser)
         (conversation currentUser)
 
@@ -121,7 +128,7 @@ reply state userId message
           (ChatState
             { currentUser = identity currentUser
             , buddy       = identity (getUser (otherUserId userId) state)
-            , chatId      = Telegram.chatId message
+            , chatId      = Message.chatId message
             }
           )
           effects
@@ -172,7 +179,7 @@ otherUserId userId = case userId of
   UserA -> UserB
   UserB -> UserA
 
-matchUserId :: State -> Telegram.Username -> Maybe UserId
+matchUserId :: State -> Telegram.Username.Username -> Maybe UserId
 matchUserId state uname
   | (telegramId . identity . userA) state == uname = Just UserA
   | (telegramId . identity . userB) state == uname = Just UserB

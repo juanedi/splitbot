@@ -5,13 +5,13 @@ import qualified Network.HTTP.Client as Http
 import           Network.HTTP.Client.TLS (newTlsManager)
 import qualified Queue
 import           Queue (Queue)
-import qualified Telegram
-import           Telegram (Message)
 import           Telegram.Api (Token)
 import qualified Telegram.Api as Api
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import           Telegram.Api.Update (Update)
 import qualified Telegram.Api.Update as Update
+import           Telegram.Message (Message)
+import qualified Telegram.Message as Message
 
 data State = State
   { http :: Http.Manager
@@ -39,7 +39,7 @@ loop queue state = do
 getMessage :: State -> IO (Message, State)
 getMessage state = case fetchState state of
   Buffered nextUpdate rest -> return
-    ( Telegram.toMessage nextUpdate
+    ( Message.fromUpdate nextUpdate
     , case rest of
       u : us -> state { fetchState = Buffered u us }
       [] -> state { fetchState = NeedMore $ Just $ Update.updateId nextUpdate }
