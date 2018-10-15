@@ -37,7 +37,7 @@ run q port = do
 app :: ScottyT Text ConfigM ()
 app = do
   middleware logStdoutDev
-  post "/" $ do
+  post "/updates" $ do
     config <- lift ask
     rd     <- bodyReader
     body   <- liftIO rd
