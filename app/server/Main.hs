@@ -10,6 +10,7 @@ main :: IO ()
 main = do
   settings <- Settings.fromEnv
   queue    <- Queue.new
-  _        <- concurrently (Worker.run settings queue)
-                           (Telegram.WebhookServer.run queue 3000)
+  _        <- concurrently
+    (Worker.run settings queue)
+    (Telegram.WebhookServer.run queue (Settings.telegramToken settings) 3000)
   return ()
