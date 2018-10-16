@@ -58,7 +58,7 @@ reply user message = do
   where txt = (Message.text message)
 
 
-runEffect :: Model -> Session -> Effect -> IO ()
+runEffect :: Model -> Session -> Effect -> IO Bool
 runEffect model session effect
   = let
       httpManager = Model.http model
@@ -72,13 +72,16 @@ runEffect model session effect
         (Model.splitwiseToken model)
     in
       case effect of
-        Answer reply   -> send reply
-        Store  expense -> do
-          sucess <- createExpense expense
-          if (not sucess)
-            then
-              send
-                (Reply.plain
-                  "Ooops, something went wrong! This might be a bug 🐛"
-                )
-            else return ()
+        Answer reply -> do
+          send reply
+        Store expense -> do
+          success <- createExpense expense
+          if success
+            then return True
+            else do
+              _ <-
+                send
+                  (Reply.plain
+                    "Ooops, something went wrong! This might be a bug 🐛"
+                  )
+              return False

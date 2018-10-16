@@ -58,7 +58,11 @@ performing effect (Eff (a, effects)) = Eff (a, effects ++ [effect])
 (!) :: Effectful e a -> e -> Effectful e a
 (!) = flip performing
 
-run :: (e -> IO ()) -> Effectful e a -> IO a
-run f (Eff (a, effects)) = do
-  _ <- sequence (f <$> effects)
-  return a
+{-| Runs the sequence of effects using the provided function. If one of those
+fail by returning `False`, then the rest of the effects will not be run.
+-}
+run :: (e -> IO Bool) -> Effectful e a -> IO a
+run _ (Eff (a, []      )) = return a
+run f (Eff (a, (e : es))) = do
+  success <- f e
+  if success then run f (Eff (a, es)) else return a

@@ -39,9 +39,6 @@ data GetUpdatesError
   = GetUpdatesApiError
   | GetUpdatesDecodingError
 
-type SendMessageResult
-  = Bool
-
 
 getUpdates :: Token -> Http.Manager -> Maybe Integer -> IO GetUpdatesResult
 getUpdates token manager offset = do
@@ -83,7 +80,7 @@ apiUrl :: Token -> String -> String
 apiUrl token apiMethod =
   concat ["https://api.telegram.org/bot", token, "/", apiMethod]
 
-sendMessage :: Token -> Http.Manager -> ChatId -> Reply -> IO SendMessageResult
+sendMessage :: Token -> Http.Manager -> ChatId -> Reply -> IO Bool
 sendMessage token manager chatId reply = do
   request  <- newSendRequest token chatId reply
   response <- httpLbs request manager
