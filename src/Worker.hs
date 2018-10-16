@@ -38,16 +38,17 @@ data UserIdentity = UserIdentity
   , splitwiseId :: Splitwise.UserId
   }
 
-data ChatState = ChatState
-  { currentUser :: UserIdentity
-  , buddy :: UserIdentity
-  , chatId :: ChatId
-  }
-
 data UserId
   = UserA
   | UserB
   deriving (Show)
+
+data Session = Session
+  { userId :: UserId
+  , chatId :: ChatId
+  , user :: User
+  , buddy :: UserIdentity
+  }
 
 run :: Settings -> Queue Message -> IO ()
 run settings queue = do
@@ -92,79 +93,73 @@ initState settings httpManager
 
 loop :: Queue Message -> State -> IO ()
 loop queue state = do
-  msg          <- Queue.dequeue queue
-  updatedState <- processMessage state msg
-  loop queue updatedState
+  msg <- Queue.dequeue queue
+  case identifyUser state msg of
+    Nothing -> do
+      putStrLn $ "Ignoring message from unknown user" ++ show
+        (Message.username msg)
+      return ()
+    Just session -> do
+      updatedState <- processMessage state session msg
+      loop queue updatedState
 
-processMessage :: State -> Message -> IO State
-processMessage state message = do
+identifyUser :: State -> Message -> Maybe Session
+identifyUser state message =
   let username    = Message.username message
       maybeUserId = matchUserId state username
-  case maybeUserId of
-    Nothing -> do
-      putStrLn $ "Ignoring message from unknown user" ++ show username
-      return state
-    Just userId -> do
-      reply state userId message
-
-reply :: State -> UserId -> Message -> IO State
-reply state userId message
-  = let
-      currentUser                    = getUser userId state
-
-      (updatedConversation, effects) = advanceConversation
-        (Message.text message)
-        (preset currentUser)
-        (conversation currentUser)
-
-      state' = updateUser
-        userId
-        (currentUser { conversation = updatedConversation })
-        state
-    in
-      do
-        runEffects
-          state'
-          (ChatState
-            { currentUser = identity currentUser
-            , buddy       = identity (getUser (otherUserId userId) state)
-            , chatId      = Message.chatId message
+  in  case maybeUserId of
+        Nothing     -> Nothing
+        Just userId -> Just
+          (Session
+            { userId = userId
+            , chatId = Message.chatId message
+            , user   = getUser userId state
+            , buddy  = identity (getUser (otherUserId userId) state)
             }
           )
-          effects
+
+processMessage :: State -> Session -> Message -> IO State
+processMessage state session message =
+  let (user', effects) = reply (user session) message
+      state'           = updateUser (userId session) (const user') state
+  in  do
+        runEffects state' (session { user = user' }) effects
         return state'
 
-advanceConversation
-  :: String -> Split -> Maybe Conversation -> (Maybe Conversation, [Effect])
-advanceConversation message preset current = case current of
-  Nothing -> Conversation.start message preset
-  Just c  -> Conversation.advance message c
+reply :: User -> Message -> (User, [Effect])
+reply user message =
+  let messageText                    = Message.text message
+      (updatedConversation, effects) = case conversation user of
+        Nothing -> Conversation.start messageText (preset user)
+        Just c  -> Conversation.advance messageText c
+  in  (user { conversation = updatedConversation }, effects)
 
-runEffects :: State -> ChatState -> [Effect] -> IO ()
-runEffects state chatState effects = do
+
+runEffects :: State -> Session -> [Effect] -> IO ()
+runEffects state session effects = do
   _ <- sequence (run <$> effects)
   return ()
-  where run = runEffect state chatState
+  where run = runEffect state session
 
-runEffect :: State -> ChatState -> Effect -> IO ()
-runEffect state chatState effect =
+runEffect :: State -> Session -> Effect -> IO ()
+runEffect state session effect =
   let httpManager = http state
   in  case effect of
         Answer reply -> Telegram.sendMessage httpManager
                                              (telegramToken state)
-                                             (chatId chatState)
+                                             (chatId session)
                                              reply
         Done expense -> do
           sucess <- Splitwise.createExpense
             httpManager
-            (splitwiseId (currentUser chatState))
-            (splitwiseId (buddy chatState))
+            (splitwiseId ((identity . user) session))
+            (splitwiseId (buddy session))
             expense
             (splitwiseToken state)
           if sucess
             then Telegram.sendMessage httpManager
                                       (telegramToken state)
-                                      (chatId chatState)
+                                      (chatId session)
                                       (Reply.plain "Done! 🎉 💸")
             else return ()
 
@@ -184,7 +179,7 @@ matchUserId state uname
   | (telegramId . identity . userB) state == uname = Just UserB
   | otherwise = Nothing
 
-updateUser :: UserId -> User -> State -> State
-updateUser userId updatedUser state = case userId of
-  UserA -> state { userA = updatedUser }
-  UserB -> state { userB = updatedUser }
+updateUser :: UserId -> (User -> User) -> State -> State
+updateUser userId f state = case userId of
+  UserA -> state { userA = f (userA state) }
+  UserB -> state { userB = f (userB state) }
