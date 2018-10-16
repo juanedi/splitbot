@@ -79,7 +79,7 @@ initialize settings httpManager
         , splitwiseToken = Splitwise.Token $ Settings.splitwiseToken settings
         }
 
-updateUser :: UserId -> (User -> User) -> Model -> Model
-updateUser userId f model = case userId of
-  UserA -> model { userA = f (userA model) }
-  UserB -> model { userB = f (userB model) }
+updateUser :: UserId -> Model -> User -> Model
+updateUser userId model updatedUser = case userId of
+  UserA -> model { userA = updatedUser }
+  UserB -> model { userB = updatedUser }

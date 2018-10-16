@@ -2,6 +2,8 @@ module Worker (run) where
 
 import qualified Conversation
 import           Conversation (Effect(..))
+import qualified Effectful
+import           Effectful (Effectful)
 import           Network.HTTP.Client.TLS (newTlsManager)
 import qualified Queue
 import           Queue (Queue)
@@ -11,16 +13,19 @@ import qualified Telegram
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
 import qualified Telegram.Reply as Reply
-import           Worker.Model (Model, User)
+import           Worker.Model (Model, User, UserId)
 import qualified Worker.Model as Model
 import           Worker.Session (Session)
 import qualified Worker.Session as Session
+
+
+(|>) :: a -> (a -> b) -> b
+(|>) a f = f a
 
 run :: Settings -> Queue Message -> IO ()
 run settings queue = do
   httpManager <- newTlsManager
   loop queue (Model.initialize settings httpManager)
-
 
 loop :: Queue Message -> Model -> IO ()
 loop queue model = do
@@ -34,48 +39,46 @@ loop queue model = do
       updatedState <- processMessage model session msg
       loop queue updatedState
 
-
 processMessage :: Model -> Session -> Message -> IO Model
 processMessage model session message =
-  let (user', effects) = reply (Session.user session) message
-      model' = Model.updateUser (Session.userId session) (const user') model
-  in  do
-        runEffects model' (session { Session.user = user' }) effects
-        return model'
+  message
+    |> reply (Session.user session)
+    |> updateUser (Session.userId session) model
+    |> Effectful.run (runEffect model session)
 
-reply :: User -> Message -> (User, [Effect])
-reply user message =
-  let messageText                    = Message.text message
-      (updatedConversation, effects) = case Model.conversation user of
-        Nothing -> Conversation.start messageText (Model.preset user)
-        Just c  -> Conversation.advance messageText c
-  in  (user { Model.conversation = updatedConversation }, effects)
+updateUser :: UserId -> Model -> Effectful Effect User -> Effectful Effect Model
+updateUser userId model = fmap (Model.updateUser userId model)
 
+reply :: User -> Message -> Effectful Effect User
+reply user message = do
+  updatedConversation <- case Model.conversation user of
+    Nothing -> Conversation.start txt (Model.preset user)
+    Just c  -> Conversation.advance txt c
+  return user { Model.conversation = updatedConversation }
+  where txt = (Message.text message)
 
-runEffects :: Model -> Session -> [Effect] -> IO ()
-runEffects model session effects = do
-  _ <- sequence (run <$> effects)
-  return ()
-  where run = runEffect model session
 
 runEffect :: Model -> Session -> Effect -> IO ()
-runEffect model session effect =
-  let httpManager = Model.http model
-  in  case effect of
-        Answer reply -> Telegram.sendMessage httpManager
-                                             (Model.telegramToken model)
-                                             (Session.chatId session)
-                                             reply
-        Done expense -> do
-          sucess <- Splitwise.createExpense
-            httpManager
-            (Model.splitwiseId ((Model.identity . Session.user) session))
-            (Model.splitwiseId (Session.buddy session))
-            expense
-            (Model.splitwiseToken model)
-          if sucess
-            then Telegram.sendMessage httpManager
-                                      (Model.telegramToken model)
-                                      (Session.chatId session)
-                                      (Reply.plain "Done! 🎉 💸")
+runEffect model session effect
+  = let
+      httpManager = Model.http model
+      send        = Telegram.sendMessage httpManager
+                                         (Model.telegramToken model)
+                                         (Session.chatId session)
+      createExpense = Splitwise.createExpense
+        httpManager
+        (Model.splitwiseId ((Model.identity . Session.user) session))
+        (Model.splitwiseId (Session.buddy session))
+        (Model.splitwiseToken model)
+    in
+      case effect of
+        Answer reply   -> send reply
+        Store  expense -> do
+          sucess <- createExpense expense
+          if (not sucess)
+            then
+              send
+                (Reply.plain
+                  "Ooops, something went wrong! This might be a bug 🐛"
+                )
             else return ()

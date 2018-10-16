@@ -23,10 +23,10 @@ createExpense
   :: Http.Manager
   -> UserId
   -> UserId
-  -> Conversation.Expense.Expense
   -> Token
+  -> Conversation.Expense.Expense
   -> IO Bool
-createExpense http (UserId currentUser) (UserId buddy) expense (Token token) =
+createExpense http (UserId currentUser) (UserId buddy) (Token token) expense =
   let description =
         (Description.text . Conversation.Expense.description) expense
       cost = (Amount.value . Conversation.Expense.amount) expense
