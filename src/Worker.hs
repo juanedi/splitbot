@@ -59,19 +59,22 @@ reply user message = do
 
 
 runEffect :: Model -> Session -> Effect -> IO Bool
-runEffect model session effect
-  = let
-      httpManager = Model.http model
+runEffect model session effect =
+  let httpManager = Model.http model
+
       send        = Telegram.sendMessage httpManager
                                          (Model.telegramToken model)
                                          (Session.chatId session)
+
+      notifyError = send
+        (Reply.plain "Ooops, something went wrong! This might be a bug 🐛")
+
       createExpense = Splitwise.createExpense
         httpManager
         (Model.splitwiseId ((Model.identity . Session.user) session))
         (Model.splitwiseId (Session.buddy session))
         (Model.splitwiseToken model)
-    in
-      case effect of
+  in  case effect of
         Answer reply -> do
           send reply
         Store expense -> do
@@ -79,9 +82,5 @@ runEffect model session effect
           if success
             then return True
             else do
-              _ <-
-                send
-                  (Reply.plain
-                    "Ooops, something went wrong! This might be a bug 🐛"
-                  )
+              _ <- notifyError
               return False
