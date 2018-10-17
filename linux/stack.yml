@@ -8,7 +8,6 @@ system-ghc: true
 image:
   container:
     base: "fpco/stack-build:lts-12.11"
-    name: "juanedi/splitbot"
 
 ghc-options:
     "$locals": -Wall -fno-warn-name-shadowing -XOverloadedStrings
