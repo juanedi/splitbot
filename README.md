@@ -29,9 +29,9 @@ Please refer to the [Telegram bot API docs](https://core.telegram.org/bots#3-how
 
 All settings are read from environment variables. Please take a look at the [Settings module](https://github.com/juanedi/splitbot/blob/master/src/Settings.hs) for a complete list of required variables.
 
-## Execution modes
+## Running
 
-Running `stack build` will create two executables, each corresponding to one of the provided modes of operation supported by the Telegram API.
+Executing `stack build` will create two executables, each corresponding to one of the provided modes of operation supported by the Telegram API.
 
 ### splitbot-polling
 
