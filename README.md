@@ -41,7 +41,7 @@ This is the recommended way to use the bot during development since setup is a l
 
 ### splitbot-server
 
-This program gets push notifications from Telegram via the webhooks. A web server is started and updates are posted as JSON at the `/#BOT_TOKEN#/updates` endpoint.
+This program gets push notifications from Telegram via webhooks. A web server is started and updates are posted as JSON at the `/#BOT_TOKEN#/updates` endpoint.
 
 Note that you'll need domain with a valid, non-wildcard SSL certificate. The server started by `splitbot-server` doesn't handle SSL certificates, so you should set up a proxy server (such as Apache or NGINX) on front of it. When doing this, take into account that the Telegram API requires you to present the full certificate chain. You'll find more detailed instructions [here](https://core.telegram.org/bots/webhooks).
 
