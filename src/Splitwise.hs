@@ -1,7 +1,9 @@
 module Splitwise
   ( createExpense
+  , getBalance
   , UserId(..)
   , Token(..)
+  , Balance
   )
 where
 
@@ -11,9 +13,12 @@ import qualified Conversation.Parameters.Description as Description
 import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import           Conversation.Parameters.Who
+import qualified Currency
 import           Data.ByteString.Char8 (pack)
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
+import           Splitwise.Api.Balance (Balance)
+import qualified Splitwise.Api.GetBalanceResponse as GetBalanceResponse
 
 newtype UserId = UserId Integer
 
@@ -38,7 +43,7 @@ createExpense http (UserId currentUser) (UserId buddy) (Token token) expense =
   in  Api.createExpense http apiToken $ Api.Expense
         { Api.payment     = False
         , Api.cost        = cost
-        , Api.currency    = Api.ARS
+        , Api.currency    = Currency.ARS
         , Api.description = description
         , Api.user1Share  = Api.UserShare
           { Api.userId    = currentUser
@@ -51,6 +56,11 @@ createExpense http (UserId currentUser) (UserId buddy) (Token token) expense =
           , Api.owedShare = buddysOwedShare
           }
         }
+
+getBalance :: Http.Manager -> Token -> UserId -> IO (Maybe Balance)
+getBalance http (Token token) (UserId friendId) = do
+  response <- Api.getBalance http (Api.Token (pack token)) friendId
+  return $ (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
 
 paidShares :: Who -> Integer -> (Integer, Integer)
 paidShares payer cost = case payer of

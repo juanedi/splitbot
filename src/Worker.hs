@@ -74,13 +74,21 @@ runEffect model session effect =
         (Model.splitwiseId ((Model.identity . Session.user) session))
         (Model.splitwiseId (Session.buddy session))
         (Model.splitwiseToken model)
+
+      getBalance = Splitwise.getBalance
+        httpManager
+        (Model.splitwiseToken model)
+        (Model.splitwiseId (Session.buddy session))
   in  case effect of
         Answer reply -> do
           send reply
         Store expense -> do
-          success <- createExpense expense
-          if success
-            then return True
-            else do
-              _ <- notifyError
-              return False
+          balance <- getBalance
+          putStrLn (show balance)
+          return True
+          -- success <- createExpense expense
+          -- if success
+          --   then return True
+          --   else do
+          --     _ <- notifyError
+          --     return False
