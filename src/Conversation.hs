@@ -19,6 +19,8 @@ import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import           Conversation.Parameters.Who
 import           Effectful
+import           Splitwise.Api.Balance (Balance)
+import qualified Splitwise.Api.Balance as Balance
 import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
@@ -57,6 +59,7 @@ data Question
 data Effect
   = Answer Reply
   | Store Expense
+  | ReportBalance (Maybe Balance -> Reply)
 
 type Result = Effectful Effect (Maybe Conversation)
 
@@ -128,7 +131,7 @@ advance userMessage conversation = case conversation of
         continue conversation ! Answer (Reply.apologizing (Split.ask preset))
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then hangup ! Answer holdOn ! Store expense ! Answer done
+    then hangup ! Answer holdOn ! Store expense ! ReportBalance done
     else hangup ! Answer cancelled
 
 
@@ -139,10 +142,24 @@ hangup :: Result
 hangup = return Nothing
 
 holdOn :: Reply
-holdOn = Reply.plain "Hold on a sec..."
+holdOn = Reply.plain "Hold on a sec... ⏳"
 
-done :: Reply
-done = Reply.plain "Done! 🎉 💸"
+done :: Maybe Balance -> Reply
+done balanceResult = Reply.plain $ case balanceResult of
+  Nothing      -> confirmation
+  Just balance -> confirmation ++ summary balance
+ where
+  confirmation = "Done! 🎉 💸\n"
+  summary balance = case balance of
+    []     -> "You're even!"
+    b : [] -> currencySummary b
+    _      -> unlines $ currencySummary <$> balance
+
+  currencySummary cb = mconcat
+    [ if Balance.amount cb >= 0 then "You are owed" else "You owe"
+    , " "
+    , show (Balance.currency cb) ++ " " ++ show (abs $ Balance.amount cb)
+    ]
 
 cancelled :: Reply
 cancelled = Reply.plain "Alright, the expense was discarded 👍"

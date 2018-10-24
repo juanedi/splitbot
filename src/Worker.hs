@@ -9,12 +9,9 @@ import qualified Queue
 import           Queue (Queue)
 import           Settings (Settings)
 import qualified Splitwise
-import           Splitwise.Api.Balance (Balance)
-import qualified Splitwise.Api.Balance as Balance
 import qualified Telegram
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
-import           Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 import           Worker.Model (Model, User, UserId)
 import qualified Worker.Model as Model
@@ -88,24 +85,12 @@ runEffect model session effect =
         Store expense -> do
           success <- createExpense expense
           if success
-            then do
-              balanceResult <- getBalance
-              case balanceResult of
-                Nothing      -> return True
-                Just balance -> do
-                  _ <- send (balanceSummary balance)
-                  return True
+            then return True
             else do
               _ <- notifyError
               return False
-
-balanceSummary :: Balance -> Reply
-balanceSummary balance = case balance of
-  []     -> Reply.plain "You're even!"
-  b : [] -> Reply.plain $ currencySummary b
-  _      -> Reply.plain $ unlines $ currencySummary <$> balance
- where
-  currencySummary cb = prefix cb ++ " " ++ value cb
-  prefix cb = if Balance.amount cb >= 0 then "You are owed" else "You owe"
-  value cb =
-    show (Balance.currency cb) ++ " " ++ show (abs $ Balance.amount cb)
+        ReportBalance reply -> do
+          do
+            result <- getBalance
+            _      <- send (reply result)
+            return True
