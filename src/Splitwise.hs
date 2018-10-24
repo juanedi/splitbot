@@ -3,7 +3,6 @@ module Splitwise
   , getBalance
   , UserId(..)
   , Token(..)
-  , Balance
   )
 where
 

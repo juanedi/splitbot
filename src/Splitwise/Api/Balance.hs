@@ -1,5 +1,6 @@
 module Splitwise.Api.Balance
   ( Balance
+  , CurrencyBalance
   , currency
   , amount ) where
 

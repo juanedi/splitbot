@@ -128,7 +128,7 @@ advance userMessage conversation = case conversation of
         continue conversation ! Answer (Reply.apologizing (Split.ask preset))
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then hangup ! Store expense ! Answer done
+    then hangup ! Answer holdOn ! Store expense ! Answer done
     else hangup ! Answer cancelled
 
 
@@ -137,6 +137,9 @@ continue c = return (Just c)
 
 hangup :: Result
 hangup = return Nothing
+
+holdOn :: Reply
+holdOn = Reply.plain "Hold on a sec..."
 
 done :: Reply
 done = Reply.plain "Done! 🎉 💸"
