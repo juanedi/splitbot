@@ -24,7 +24,7 @@ data Model = Model
   , userA :: User
   , userB :: User
   , telegramToken :: Telegram.Token
-  , splitwiseToken :: Splitwise.Token
+  , splitwiseAuth :: Splitwise.Group
   }
 
 data User = User
@@ -35,7 +35,7 @@ data User = User
 
 data UserIdentity = UserIdentity
   { telegramId :: Username
-  , splitwiseId :: Splitwise.UserId
+  , splitwiseRole :: Splitwise.Role
   }
 
 data UserId
@@ -50,33 +50,33 @@ initialize settings httpManager
       presetB = 100 - presetA
     in
       Model
-        { http           = httpManager
-        , userA          = User
+        { http          = httpManager
+        , userA         = User
           { identity     = UserIdentity
-            { telegramId  = ( Telegram.Username.fromString
-                            . Settings.userATelegramId
-                            )
+            { telegramId    = ( Telegram.Username.fromString
+                              . Settings.userATelegramId
+                              )
               settings
-            , splitwiseId = (Splitwise.UserId . Settings.userASplitwiseId)
-              settings
+            , splitwiseRole = Splitwise.Owner
             }
           , preset       = Split.init presetA
           , conversation = Nothing
           }
-        , userB          = User
+        , userB         = User
           { identity     = UserIdentity
-            { telegramId  = ( Telegram.Username.fromString
-                            . Settings.userBTelegramId
-                            )
+            { telegramId    = ( Telegram.Username.fromString
+                              . Settings.userBTelegramId
+                              )
               settings
-            , splitwiseId = (Splitwise.UserId . Settings.userBSplitwiseId)
-              settings
+            , splitwiseRole = Splitwise.Peer
             }
           , preset       = Split.init presetB
           , conversation = Nothing
           }
-        , telegramToken  = Telegram.Token $ Settings.telegramToken settings
-        , splitwiseToken = Splitwise.Token $ Settings.splitwiseToken settings
+        , telegramToken = Telegram.Token $ Settings.telegramToken settings
+        , splitwiseAuth = Splitwise.auth (Settings.splitwiseToken settings)
+                                         (Settings.userASplitwiseId settings)
+                                         (Settings.userBSplitwiseId settings)
         }
 
 updateUser :: UserId -> Model -> User -> Model

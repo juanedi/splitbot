@@ -1,8 +1,9 @@
 module Splitwise
-  ( createExpense
+  ( auth
+  , createExpense
   , getBalance
-  , UserId(..)
-  , Token(..)
+  , Group
+  , Role(..)
   )
 where
 
@@ -17,57 +18,76 @@ import           Data.ByteString.Char8 (pack)
 import qualified Network.HTTP.Client as Http
 import qualified Splitwise.Api as Api
 import           Splitwise.Api.Balance (Balance)
+import qualified Splitwise.Api.Balance as Balance
 import qualified Splitwise.Api.GetBalanceResponse as GetBalanceResponse
 
-newtype UserId = UserId Integer
+newtype UserId = UserId { getId :: Integer } deriving Eq
 
-newtype Token = Token String
+data Group = Group
+  { token :: Api.Token
+  , owner :: UserId
+  , peer :: UserId
+  }
+
+data Role = Owner | Peer
+
+auth :: String -> Integer -> Integer -> Group
+auth token owner peer = Group
+  { token = Api.Token (pack token)
+  , owner = UserId owner
+  , peer  = UserId peer
+  }
 
 createExpense
-  :: Http.Manager
-  -> UserId
-  -> UserId
-  -> Token
-  -> Conversation.Expense.Expense
-  -> IO Bool
-createExpense http (UserId currentUser) (UserId buddy) (Token token) expense =
+  :: Http.Manager -> Role -> Group -> Conversation.Expense.Expense -> IO Bool
+createExpense http role group expense =
   let description =
         (Description.text . Conversation.Expense.description) expense
       cost = (Amount.value . Conversation.Expense.amount) expense
-      payer                          = Conversation.Expense.payer expense
-      (myPaidShare, buddysPaidShare) = paidShares payer cost
-      split                          = Conversation.Expense.split expense
-      (myOwedShare, buddysOwedShare) = owedShares split cost
-      apiToken                       = Api.Token $ pack token
+      payer                           = Conversation.Expense.payer expense
+      (ownerPaidShare, peerPaidShare) = paidShares payer role cost
+      split                           = Conversation.Expense.split expense
+      (myOwedShare, buddysOwedShare)  = owedShares split role cost
+      apiToken                        = token group
   in  Api.createExpense http apiToken $ Api.Expense
         { Api.payment     = False
         , Api.cost        = cost
         , Api.currency    = Currency.ARS
         , Api.description = description
         , Api.user1Share  = Api.UserShare
-          { Api.userId    = currentUser
-          , Api.paidShare = myPaidShare
+          { Api.userId    = getId (owner group)
+          , Api.paidShare = ownerPaidShare
           , Api.owedShare = myOwedShare
           }
         , Api.user2Share  = Api.UserShare
-          { Api.userId    = buddy
-          , Api.paidShare = buddysPaidShare
+          { Api.userId    = getId (peer group)
+          , Api.paidShare = peerPaidShare
           , Api.owedShare = buddysOwedShare
           }
         }
 
-getBalance :: Http.Manager -> Token -> UserId -> IO (Maybe Balance)
-getBalance http (Token token) (UserId friendId) = do
-  response <- Api.getBalance http (Api.Token (pack token)) friendId
-  return $ (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
+getBalance :: Http.Manager -> Group -> Role -> IO (Maybe Balance)
+getBalance http group role = do
+  -- TODO use role to invert balance if necessary
+  response <- Api.getBalance http (token group) (getId (peer group))
+  let balance =
+        (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
+  return $ case role of
+    Owner -> balance
+    Peer  -> Balance.invert <$> balance
 
-paidShares :: Who -> Integer -> (Integer, Integer)
-paidShares payer cost = case payer of
-  Me   -> (cost, 0)
-  They -> (0, cost)
+-- (owner_share, peer_share)
+paidShares :: Who -> Role -> Integer -> (Integer, Integer)
+paidShares Me   Owner cost = (cost, 0)
+paidShares Me   Peer  cost = (0, cost)
+paidShares They Owner cost = (0, cost)
+paidShares They Peer  cost = (cost, 0)
 
-owedShares :: Split -> Integer -> (Integer, Integer)
-owedShares split cost =
+-- (owner_share, peer_share)
+owedShares :: Split -> Role -> Integer -> (Integer, Integer)
+owedShares split role cost =
   let myShare =
         round $ (fromInteger (cost * (Split.myPart split)) :: Double) / 100
-  in  (myShare, cost - myShare)
+  in  case role of
+        Owner -> (myShare, cost - myShare)
+        Peer  -> (cost - myShare, myShare)

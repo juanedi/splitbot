@@ -2,7 +2,9 @@ module Splitwise.Api.Balance
   ( Balance
   , CurrencyBalance
   , currency
-  , amount ) where
+  , amount
+  , invert
+  ) where
 
 import Currency (Currency)
 import Data.Aeson ( FromJSON , (.:) , parseJSON , withObject)
@@ -23,3 +25,7 @@ instance FromJSON CurrencyBalance where
         <$> (o .: "currency_code")
         <*> -- the amount comes as a string
             (fmap read (o .: "amount"))
+
+
+invert :: Balance -> Balance
+invert = fmap (\(CurrencyBalance c a) -> CurrencyBalance c (-a))
