@@ -46,7 +46,7 @@ data UserId
 initialize :: Settings -> Http.Manager -> Model
 initialize settings httpManager
   = let
-      presetA = Settings.userAPreset settings
+      presetA = Settings.userASplitwisePreset settings
       presetB = 100 - presetA
     in
       Model
@@ -74,9 +74,10 @@ initialize settings httpManager
           , conversation = Nothing
           }
         , telegramToken = Telegram.Token $ Settings.telegramToken settings
-        , splitwiseAuth = Splitwise.group (Settings.splitwiseToken settings)
-                                          (Settings.userASplitwiseId settings)
-                                          (Settings.userBSplitwiseId settings)
+        , splitwiseAuth = Splitwise.group
+          (Settings.userASplitwiseToken settings)
+          (Settings.userASplitwiseId settings)
+          (Settings.userBSplitwiseId settings)
         }
 
 updateUser :: UserId -> Model -> User -> Model
