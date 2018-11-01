@@ -74,9 +74,9 @@ initialize settings httpManager
           , conversation = Nothing
           }
         , telegramToken = Telegram.Token $ Settings.telegramToken settings
-        , splitwiseAuth = Splitwise.auth (Settings.splitwiseToken settings)
-                                         (Settings.userASplitwiseId settings)
-                                         (Settings.userBSplitwiseId settings)
+        , splitwiseAuth = Splitwise.group (Settings.splitwiseToken settings)
+                                          (Settings.userASplitwiseId settings)
+                                          (Settings.userBSplitwiseId settings)
         }
 
 updateUser :: UserId -> Model -> User -> Model

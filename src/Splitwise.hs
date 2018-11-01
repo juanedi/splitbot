@@ -1,5 +1,5 @@
 module Splitwise
-  ( auth
+  ( group
   , createExpense
   , getBalance
   , Group
@@ -21,7 +21,10 @@ import           Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
 import qualified Splitwise.Api.GetBalanceResponse as GetBalanceResponse
 
-newtype UserId = UserId { getId :: Integer } deriving Eq
+newtype UserId = UserId
+    { getId :: Integer
+    }
+    deriving Eq
 
 data Group = Group
   { token :: Api.Token
@@ -31,8 +34,8 @@ data Group = Group
 
 data Role = Owner | Peer
 
-auth :: String -> Integer -> Integer -> Group
-auth token owner peer = Group
+group :: String -> Integer -> Integer -> Group
+group token owner peer = Group
   { token = Api.Token (pack token)
   , owner = UserId owner
   , peer  = UserId peer
