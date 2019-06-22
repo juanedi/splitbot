@@ -10,6 +10,7 @@ import           Queue (Queue)
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
+import           Telegram.Api (ChatId)
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
 import qualified Telegram.Reply as Reply
@@ -43,11 +44,15 @@ processMessage :: Model -> Session -> Message -> IO Model
 processMessage model session message =
   message
     |> reply (Session.user session)
+    |> fmap (storeChatId (Session.chatId session))
     |> updateUser (Session.userId session) model
     |> Effectful.run (runEffect model session)
 
 updateUser :: UserId -> Model -> Effectful Effect User -> Effectful Effect Model
 updateUser userId model = fmap (Model.updateUser userId model)
+
+storeChatId :: ChatId -> User -> User
+storeChatId chatId user = user { Model.chatId = Just chatId }
 
 reply :: User -> Message -> Effectful Effect User
 reply user message = do
