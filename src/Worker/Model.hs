@@ -16,6 +16,7 @@ import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
+import           Telegram.Api (ChatId)
 import qualified Telegram.Username
 import           Telegram.Username (Username)
 
@@ -31,6 +32,7 @@ data User = User
   { identity :: UserIdentity
   , preset :: Split
   , conversation :: Maybe Conversation
+  , chatId :: Maybe ChatId
   }
 
 data UserIdentity = UserIdentity
@@ -61,6 +63,7 @@ initialize settings httpManager
             }
           , preset       = Split.init presetA
           , conversation = Nothing
+          , chatId       = Nothing
           }
         , userB         = User
           { identity     = UserIdentity
@@ -72,6 +75,7 @@ initialize settings httpManager
             }
           , preset       = Split.init presetB
           , conversation = Nothing
+          , chatId       = Nothing
           }
         , telegramToken = Telegram.Token $ Settings.telegramToken settings
         , splitwiseAuth = Splitwise.group

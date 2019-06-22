@@ -8,7 +8,15 @@ import           Telegram.Api (ChatId)
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
 import           Telegram.Username (Username)
-import           Worker.Model
+import           Worker.Model ( UserId(..)
+                              , User
+                              , UserIdentity
+                              , Model
+                              , identity
+                              , userA
+                              , userB
+                              , telegramId
+                              )
 
 data Session = Session
   { userId :: UserId
