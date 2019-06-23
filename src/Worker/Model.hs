@@ -3,6 +3,7 @@ module Worker.Model
   , User(..)
   , UserId(..)
   , UserIdentity(..)
+  , ConversationState(..)
   , initialize
   , updateUser
   )
@@ -31,9 +32,15 @@ data Model = Model
 data User = User
   { identity :: UserIdentity
   , preset :: Split
-  , conversation :: Maybe Conversation
-  , chatId :: Maybe ChatId
+  , conversationState :: Maybe ConversationState
   }
+
+data ConversationState
+  = -- We have contacted the user before, and there is no active conversation
+    Inactive ChatId
+  | -- We are waiting for a reply from the user
+    Active ChatId Conversation
+
 
 data UserIdentity = UserIdentity
   { telegramId :: Username
@@ -54,28 +61,26 @@ initialize settings httpManager
       Model
         { http          = httpManager
         , userA         = User
-          { identity     = UserIdentity
+          { identity          = UserIdentity
             { telegramId    = ( Telegram.Username.fromString
                               . Settings.userATelegramId
                               )
               settings
             , splitwiseRole = Splitwise.Owner
             }
-          , preset       = Split.init presetA
-          , conversation = Nothing
-          , chatId       = Nothing
+          , preset            = Split.init presetA
+          , conversationState = Nothing
           }
         , userB         = User
-          { identity     = UserIdentity
+          { identity          = UserIdentity
             { telegramId    = ( Telegram.Username.fromString
                               . Settings.userBTelegramId
                               )
               settings
             , splitwiseRole = Splitwise.Peer
             }
-          , preset       = Split.init presetB
-          , conversation = Nothing
-          , chatId       = Nothing
+          , preset            = Split.init presetB
+          , conversationState = Nothing
           }
         , telegramToken = Telegram.Token $ Settings.telegramToken settings
         , splitwiseAuth = Splitwise.group
@@ -84,7 +89,7 @@ initialize settings httpManager
           (Settings.userBSplitwiseId settings)
         }
 
-updateUser :: UserId -> Model -> User -> Model
-updateUser userId model updatedUser = case userId of
+updateUser :: UserId -> User -> Model -> Model
+updateUser userId updatedUser model = case userId of
   UserA -> model { userA = updatedUser }
   UserB -> model { userB = updatedUser }
