@@ -55,11 +55,10 @@ runEffect model session effect
   = let
       httpManager = Model.http model
 
-      send        = Telegram.sendMessage httpManager
-                                         (Model.telegramToken model)
-                                         (Session.chatId session)
+      send        = Telegram.sendMessage httpManager (Model.telegramToken model)
 
       notifyError = send
+        (Session.chatId session)
         (Reply.plain "Ooops, something went wrong! This might be a bug 🐛")
 
       splitwiseRole =
@@ -75,7 +74,8 @@ runEffect model session effect
     in
       case effect of
         Answer reply -> do
-          send reply
+          send (Session.chatId session) reply
+
         Store expense -> do
           success <- createExpense expense
           if success
@@ -86,5 +86,16 @@ runEffect model session effect
         ReportBalance reply -> do
           do
             result <- getBalance
-            _      <- send (reply result)
+            _      <- send (Session.chatId session) (reply result)
             return True
+
+        NotifyPeer reply -> do
+          case (Session.peerChatId session) of
+            Nothing ->
+              -- this means that we don't knwo the peer's chat id because they
+              -- haven't contacted us yet.
+              return True
+            Just peerChatId -> do
+              result <- getBalance
+              _      <- send peerChatId (reply result)
+              return True

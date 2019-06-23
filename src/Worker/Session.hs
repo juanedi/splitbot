@@ -27,7 +27,7 @@ data Session = Session
   , userId :: UserId
   , chatId :: ChatId
   , conversation :: Maybe Conversation
-  , buddyChatId :: Maybe ChatId
+  , peerChatId :: Maybe ChatId
   }
 
 load :: Model -> Message -> Maybe Session
@@ -48,7 +48,7 @@ load state message =
                     Nothing                      -> Nothing
                     Just (Inactive _           ) -> Nothing
                     Just (Active _ conversation) -> Just (conversation)
-                  , buddyChatId  = case conversationState buddy of
+                  , peerChatId   = case conversationState buddy of
                     Nothing                -> Nothing
                     Just (Inactive chatId) -> Just chatId
                     Just (Active chatId _) -> Just chatId

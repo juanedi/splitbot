@@ -60,6 +60,7 @@ data Effect
   = Answer Reply
   | Store Expense
   | ReportBalance (Maybe Balance -> Reply)
+  | NotifyPeer (Maybe Balance -> Reply)
 
 type Result = Effectful Effect (Maybe Conversation)
 
