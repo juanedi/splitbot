@@ -18,6 +18,7 @@ import qualified Conversation.Parameters.Payer as Payer
 import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import           Conversation.Parameters.Who
+import           Data.Maybe (fromMaybe)
 import           Effectful
 import           Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
@@ -132,7 +133,9 @@ advance userMessage conversation = case conversation of
         continue conversation ! Answer (Reply.apologizing (Split.ask preset))
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then hangup ! Answer holdOn ! Store expense ! ReportBalance done
+    then
+      hangup ! Answer holdOn ! Store expense ! ReportBalance done ! NotifyPeer
+        (peerNotification expense)
     else hangup ! Answer cancelled
 
 
@@ -148,16 +151,39 @@ holdOn = Reply.plain "Hold on a sec... ⏳"
 done :: Maybe Balance -> Reply
 done balanceResult = Reply.plain $ case balanceResult of
   Nothing      -> confirmation
-  Just balance -> confirmation ++ summary balance
- where
-  confirmation = "Done! 🎉 💸\n"
-  summary balance = case balance of
-    []     -> "You're even!"
-    b : [] -> currencySummary b
-    _      -> unlines $ currencySummary <$> balance
+  Just balance -> confirmation ++ balanceSummary balance
+  where confirmation = "Done! 🎉 💸\n"
 
+peerNotification :: Expense -> Maybe Balance -> Reply
+peerNotification expense balanceResult = Reply.plain $ mconcat
+  [ "Hey! A new expense was created! 💰\n"
+  , fromMaybe "" $ fmap (balanceSummary . Balance.invert) $ balanceResult
+  , "\n\n"
+  , expenseSummary expense
+  ]
+
+
+expenseSummary :: Expense -> String
+expenseSummary expense = mconcat
+  [ concat ["*", (Description.text . Expense.description) expense, "*\n"]
+  , concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+  , concat
+    ["Your share: ", show $ (Split.peerPart . Expense.split) expense, "%\n"]
+  , "Payed by "
+  , case (Expense.payer expense) of
+    Me   -> "them"
+    They -> "you"
+  , "\n"
+  ]
+
+balanceSummary :: Balance -> String
+balanceSummary balance = case balance of
+  []     -> "You're now even!"
+  b : [] -> currencySummary b
+  _      -> unlines $ currencySummary <$> balance
+ where
   currencySummary cb = mconcat
-    [ if Balance.amount cb >= 0 then "You are owed" else "You owe"
+    [ if Balance.amount cb >= 0 then "You are now owed" else "Now you owe"
     , " "
     , show (Balance.currency cb) ++ " " ++ show (abs $ Balance.amount cb)
     ]
