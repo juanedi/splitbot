@@ -13,7 +13,7 @@ import qualified Telegram
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
 import qualified Telegram.Reply as Reply
-import           Worker.Model (Model, User, UserId)
+import           Worker.Model (Model, ConversationState(..))
 import qualified Worker.Model as Model
 import           Worker.Session (Session)
 import qualified Worker.Session as Session
@@ -36,38 +36,29 @@ loop queue model = do
         (Message.username msg)
       return ()
     Just session -> do
-      updatedState <- processMessage model session msg
+      updatedSession <- session |> reply msg |> Effectful.run (runEffect model)
+      let updatedState = Session.sync updatedSession model
       loop queue updatedState
 
-processMessage :: Model -> Session -> Message -> IO Model
-processMessage model session message =
-  message
-    |> reply (Session.user session)
-    |> updateUser (Session.userId session) model
-    |> Effectful.run (runEffect model session)
-
-updateUser :: UserId -> Model -> Effectful Effect User -> Effectful Effect Model
-updateUser userId model = fmap (Model.updateUser userId model)
-
-reply :: User -> Message -> Effectful Effect User
-reply user message = do
-  updatedConversation <- case Model.conversation user of
-    Nothing -> Conversation.start txt (Model.preset user)
-    Just c  -> Conversation.advance txt c
-  return user { Model.conversation = updatedConversation }
-  where txt = (Message.text message)
-
+reply :: Message -> Session -> Effectful Effect Session
+reply message session = do
+  let user = Session.user session
+      txt  = (Message.text message)
+  updatedConversation <- case Model.conversationState user of
+    Nothing           -> Conversation.start txt (Model.preset user)
+    Just (Inactive _) -> Conversation.start txt (Model.preset user)
+    Just (Active _ c) -> Conversation.advance txt c
+  return session { Session.conversation = updatedConversation }
 
 runEffect :: Model -> Session -> Effect -> IO Bool
 runEffect model session effect
   = let
       httpManager = Model.http model
 
-      send        = Telegram.sendMessage httpManager
-                                         (Model.telegramToken model)
-                                         (Session.chatId session)
+      send        = Telegram.sendMessage httpManager (Model.telegramToken model)
 
       notifyError = send
+        (Session.chatId session)
         (Reply.plain "Ooops, something went wrong! This might be a bug 🐛")
 
       splitwiseRole =
@@ -83,7 +74,8 @@ runEffect model session effect
     in
       case effect of
         Answer reply -> do
-          send reply
+          send (Session.chatId session) reply
+
         Store expense -> do
           success <- createExpense expense
           if success
@@ -94,5 +86,16 @@ runEffect model session effect
         ReportBalance reply -> do
           do
             result <- getBalance
-            _      <- send (reply result)
+            _      <- send (Session.chatId session) (reply result)
             return True
+
+        NotifyPeer reply -> do
+          case (Session.peerChatId session) of
+            Nothing ->
+              -- this means that we don't knwo the peer's chat id because they
+              -- haven't contacted us yet.
+              return True
+            Just peerChatId -> do
+              result <- getBalance
+              _      <- send peerChatId (reply result)
+              return True

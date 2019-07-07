@@ -3,6 +3,7 @@ module Conversation.Parameters.Split
   , Conversation.Parameters.Split.init
   , ask
   , parse
+  , peerPart
   ) where
 
 import           Control.Applicative ((<|>))
@@ -56,3 +57,7 @@ whoParser =
 
 constParser :: String -> a -> Parser a
 constParser accepts value = string accepts >> return value
+
+
+peerPart :: Split -> Integer
+peerPart split = 100 - (myPart split)
