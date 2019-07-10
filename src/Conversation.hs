@@ -156,10 +156,11 @@ done balanceResult = Reply.plain $ case balanceResult of
 
 peerNotification :: Expense -> Maybe Balance -> Reply
 peerNotification expense balanceResult = Reply.plain $ mconcat
-  [ "Hey! A new expense was created! 💰\n"
-  , fromMaybe "" $ fmap (balanceSummary . Balance.invert) $ balanceResult
+  [ "Hey! A new expense was created! 💰"
   , "\n\n"
   , expenseSummary expense
+  , "\n"
+  , fromMaybe "" $ fmap (balanceSummary . Balance.invert) $ balanceResult
   ]
 
 
@@ -173,7 +174,6 @@ expenseSummary expense = mconcat
   , case (Expense.payer expense) of
     Me   -> "them"
     They -> "you"
-  , "\n"
   ]
 
 balanceSummary :: Balance -> String
