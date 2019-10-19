@@ -1,4 +1,4 @@
-module Core where
+module Core (initialize, update, Model, Event(..)) where
 
 import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
