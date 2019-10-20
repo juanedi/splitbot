@@ -6,7 +6,6 @@ import           Core.Conversation (Conversation)
 import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
-import qualified Telegram
 import           Telegram.Api (ChatId)
 import           Telegram.Message (Message)
 import qualified Telegram.Message as Message
@@ -14,9 +13,7 @@ import qualified Telegram.Username
 import           Telegram.Username (Username)
 
 data Model = Model
-  { telegramToken :: Telegram.Token
-  , splitwiseAuth :: Splitwise.Group
-  , userA :: User
+  { userA :: User
   , userB :: User
   }
 
@@ -46,18 +43,11 @@ data Effect =
   LogError String
 
 initialize :: Settings -> Model
-initialize settings
-  = let
-      presetA = Settings.userASplitwisePreset settings
+initialize settings =
+  let presetA = Settings.userASplitwisePreset settings
       presetB = 100 - presetA
-    in
-      Model
-        { telegramToken = Telegram.Token $ Settings.telegramToken settings
-        , splitwiseAuth = Splitwise.group
-          (Settings.userASplitwiseToken settings)
-          (Settings.userASplitwiseId settings)
-          (Settings.userBSplitwiseId settings)
-        , userA         = User
+  in  Model
+        { userA = User
           { telegramId        = (Telegram.Username.fromString
                                   (Settings.userATelegramId settings)
                                 )
@@ -65,7 +55,7 @@ initialize settings
           , preset            = Split.init presetA
           , conversationState = Uninitialized
           }
-        , userB         = User
+        , userB = User
           { telegramId        = (Telegram.Username.fromString
                                   (Settings.userBTelegramId settings)
                                 )
