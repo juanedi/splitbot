@@ -19,7 +19,6 @@ import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import           Conversation.Parameters.Who
 import           Data.Maybe (fromMaybe)
-import           Effectful
 import           Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
 import           Telegram.Reply (Reply)
@@ -63,87 +62,94 @@ data Effect
   | ReportBalance (Maybe Balance -> Reply)
   | NotifyPeer (Maybe Balance -> Reply)
 
-type Result = Effectful Effect (Maybe Conversation)
+type Result = (Maybe Conversation, [Effect] )
 
 start :: String -> Split -> Result
 start message preset =
   let description = Description.read message
   in  case message of
         "/start" ->
-          continue (AwaitingDescription preset) ! Answer (Description.ask)
+          (Just (AwaitingDescription preset), [Answer (Description.ask)])
 
-        _ -> continue (AwaitingInitialConfirmation preset description)
-          ! Answer (Description.confirm description)
+        _ ->
+          ( Just (AwaitingInitialConfirmation preset description)
+          , [Answer (Description.confirm description)]
+          )
 
 advance :: String -> Conversation -> Result
 advance userMessage conversation = case conversation of
   AwaitingDescription preset ->
-    (continue $ AwaitingAmount
-        { preset      = preset
-        , description = Description.read userMessage
-        }
-      )
-      ! Answer Amount.ask
+    ( Just $ AwaitingAmount
+      { preset      = preset
+      , description = Description.read userMessage
+      }
+    , [Answer Amount.ask]
+    )
+
 
   AwaitingInitialConfirmation preset description ->
     if Description.readConfirmation userMessage
       then
-        (continue $ AwaitingAmount {preset = preset, description = description})
-          ! Answer Amount.ask
-      else hangup ! Answer cancelled
+        ( Just $ AwaitingAmount {preset = preset, description = description}
+        , [Answer Amount.ask]
+        )
+      else (Nothing, [Answer cancelled])
 
   AwaitingAmount preset description -> case Amount.parse userMessage of
     Just amount ->
-      continue
-          (AwaitingPayer
-            { preset      = preset
-            , description = description
-            , amount      = amount
-            }
-          )
-        ! Answer Payer.ask
-    Nothing -> continue conversation ! Answer (Reply.apologizing Amount.ask)
-
-  AwaitingPayer preset description amount -> case Payer.parse userMessage of
-    Just payer ->
-      (continue $ AwaitingSplit
+      ( Just
+        (AwaitingPayer
           { preset      = preset
           , description = description
           , amount      = amount
-          , payer       = payer
           }
         )
-        ! Answer (Split.ask preset)
-    Nothing -> continue conversation ! Answer (Reply.apologizing Payer.ask)
+      , [Answer Payer.ask]
+      )
+    Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
+
+  AwaitingPayer preset description amount -> case Payer.parse userMessage of
+    Just payer ->
+      ( Just $ AwaitingSplit
+        { preset      = preset
+        , description = description
+        , amount      = amount
+        , payer       = payer
+        }
+      , [Answer (Split.ask preset)]
+      )
+
+    Nothing -> (Just conversation, [Answer (Reply.apologizing Payer.ask)])
 
   AwaitingSplit preset description payer amount ->
     case Split.parse userMessage of
-      Just split
-        -> let expense =
-                 (Expense.Expense
-                   { Expense.description = description
-                   , Expense.payer       = payer
-                   , Expense.amount      = amount
-                   , Expense.split       = split
-                   }
-                 )
-           in  continue (AwaitingConfirmation expense)
-                 ! Answer (Confirmation.ask expense)
+      Just split ->
+        let expense =
+              (Expense.Expense
+                { Expense.description = description
+                , Expense.payer       = payer
+                , Expense.amount      = amount
+                , Expense.split       = split
+                }
+              )
+        in  ( Just (AwaitingConfirmation expense)
+            , [Answer (Confirmation.ask expense)]
+            )
+
       Nothing ->
-        continue conversation ! Answer (Reply.apologizing (Split.ask preset))
+        (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
     then
-      hangup ! Answer holdOn ! Store expense ! ReportBalance done ! NotifyPeer
-        (peerNotification expense)
-    else hangup ! Answer cancelled
+      ( Nothing
+      , [ Answer holdOn
+        , Store expense
+        , ReportBalance done
+        , NotifyPeer (peerNotification expense)
+        ]
+      )
+    else (Nothing, [Answer cancelled])
 
-
-continue :: Conversation -> Result
-continue c = return (Just c)
-
-hangup :: Result
-hangup = return Nothing
 
 holdOn :: Reply
 holdOn = Reply.plain "Hold on a sec... ⏳"

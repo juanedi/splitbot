@@ -12,7 +12,6 @@ main = do
   settings <- Settings.fromEnv
   queue    <- Queue.new
   let token = Telegram.Token $ Settings.telegramToken settings
-  _ <- concurrently -- (Worker.run settings queue)
-                    (Runtime.start settings queue)
+  _ <- concurrently (Runtime.start settings queue)
                     (Telegram.LongPolling.run queue token)
   return ()
