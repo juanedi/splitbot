@@ -1,7 +1,6 @@
 module Main where
 
 import           Control.Concurrent.Async (concurrently)
-import qualified Queue
 import qualified Runtime
 import qualified Settings
 import qualified Telegram.WebhookServer
@@ -9,10 +8,10 @@ import qualified Telegram.WebhookServer
 main :: IO ()
 main = do
   settings <- Settings.fromEnv
-  queue    <- Queue.new
+  runtime  <- Runtime.initialize settings
   _        <- concurrently
-    (Runtime.start settings queue)
-    (Telegram.WebhookServer.run (Runtime.onMessage queue)
+    (Runtime.start runtime)
+    (Telegram.WebhookServer.run (Runtime.onMessage runtime)
                                 (Settings.telegramToken settings)
                                 (Settings.port settings)
     )

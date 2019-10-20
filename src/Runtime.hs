@@ -1,4 +1,4 @@
-module Runtime (start, onMessage) where
+module Runtime (Runtime, initialize, start, onMessage) where
 
 import qualified Core
 import qualified Network.HTTP.Client as Http
@@ -11,36 +11,41 @@ import qualified Splitwise
 import qualified Telegram
 import           Telegram.Message (Message)
 
-data State = State
+data Runtime = Runtime
   { telegramToken :: Telegram.Token
   , splitwiseGroup :: Splitwise.Group
   , http :: Http.Manager
   , queue :: Queue Core.Event
+  , core :: Core.Model
   }
 
-onMessage :: Queue Core.Event -> Message -> IO ()
-onMessage queue message = Queue.enqueue queue (Core.MessageReceived message)
-
-start :: Settings -> Queue Core.Event -> IO ()
-start settings queue = do
+initialize :: Settings -> IO Runtime
+initialize settings = do
+  queue       <- Queue.new
   httpManager <- newTlsManager
-  let state = State
-        { telegramToken  = Telegram.Token $ Settings.telegramToken settings
-        , splitwiseGroup = Splitwise.group
-          (Settings.userASplitwiseToken settings)
-          (Settings.userASplitwiseId settings)
-          (Settings.userBSplitwiseId settings)
-        , http           = httpManager
-        , queue          = queue
-        }
-  loop state (Core.initialize settings)
+  return $ Runtime
+    { telegramToken  = Telegram.Token $ Settings.telegramToken settings
+    , splitwiseGroup = Splitwise.group (Settings.userASplitwiseToken settings)
+                                       (Settings.userASplitwiseId settings)
+                                       (Settings.userBSplitwiseId settings)
+    , http           = httpManager
+    , queue          = queue
+    , core           = Core.initialize settings
+    }
 
-loop :: State -> Core.Model -> IO ()
-loop state model = do
-  event <- Queue.dequeue (queue state)
-  let (updatedModel, effects) = Core.update event model
+onMessage :: Runtime -> Message -> IO ()
+onMessage runtime =
+  \message -> Queue.enqueue (queue runtime) (Core.MessageReceived message)
+
+start :: Runtime -> IO ()
+start runtime = loop runtime
+
+loop :: Runtime -> IO ()
+loop runtime = do
+  event <- Queue.dequeue (queue runtime)
+  let (updatedCore, effects) = Core.update event (core runtime)
   runEffects effects
-  loop state updatedModel
+  loop (runtime { core = updatedCore })
 
 runEffects :: [Core.Effect] -> IO ()
 runEffects effects = case effects of
