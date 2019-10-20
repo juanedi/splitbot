@@ -12,7 +12,7 @@ main = do
   queue    <- Queue.new
   _        <- concurrently
     (Runtime.start settings queue)
-    (Telegram.WebhookServer.run (\msg -> Queue.enqueue queue msg)
+    (Telegram.WebhookServer.run (Runtime.onMessage queue)
                                 (Settings.telegramToken settings)
                                 (Settings.port settings)
     )

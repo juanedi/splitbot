@@ -1,4 +1,4 @@
-module Runtime where
+module Runtime (start, onMessage) where
 
 import qualified Core
 import qualified Network.HTTP.Client as Http
@@ -15,10 +15,13 @@ data State = State
   { telegramToken :: Telegram.Token
   , splitwiseGroup :: Splitwise.Group
   , http :: Http.Manager
-  , queue :: Queue Message
+  , queue :: Queue Core.Event
   }
 
-start :: Settings -> Queue Message -> IO ()
+onMessage :: Queue Core.Event -> Message -> IO ()
+onMessage queue message = Queue.enqueue queue (Core.MessageReceived message)
+
+start :: Settings -> Queue Core.Event -> IO ()
 start settings queue = do
   httpManager <- newTlsManager
   let state = State
@@ -34,9 +37,8 @@ start settings queue = do
 
 loop :: State -> Core.Model -> IO ()
 loop state model = do
-  msg <- Queue.dequeue (queue state)
-  let event                   = (Core.MessageReceived msg)
-      (updatedModel, effects) = Core.update event model
+  event <- Queue.dequeue (queue state)
+  let (updatedModel, effects) = Core.update event model
   runEffects effects
   loop state updatedModel
 
