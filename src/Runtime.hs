@@ -11,7 +11,6 @@ import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
 import           Telegram.Message (Message)
-import qualified Telegram.Reply as Reply
 
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
@@ -46,22 +45,27 @@ loop :: Runtime -> IO ()
 loop runtime = do
   event <- Queue.dequeue (queue runtime)
   let (updatedCore, effects) = Core.update event (core runtime)
-  runEffects effects
+  runEffects runtime effects
   loop (runtime { core = updatedCore })
 
-runEffects :: [Core.Effect] -> IO ()
-runEffects effects = case effects of
+runEffects :: Runtime -> [Core.Effect] -> IO ()
+runEffects runtime effects = case effects of
   [] -> return ()
   first : rest ->
     -- TODO: catch errors
-    (runEffect first) >> runEffects rest
+    (runEffect runtime first) >> runEffects runtime rest
 
-runEffect :: Core.Effect -> IO ()
-runEffect effect = case effect of
-  Core.LogError           msg -> putStrLn msg
-  Core.ConversationEffect eff -> case eff of
-    Conversation.Answer reply ->
-      putStrLn ("asked to answer: " ++ Reply.text reply)
+runEffect :: Runtime -> Core.Effect -> IO ()
+runEffect runtime effect = case effect of
+  Core.LogError msg -> putStrLn msg
+  Core.ConversationEffect contactInfo _splitwiseRole eff -> case eff of
+    Conversation.Answer reply -> do
+      -- TODO: handle error
+      _ <- Telegram.sendMessage (http runtime)
+                                (telegramToken runtime)
+                                (Core.chatId contactInfo)
+                                reply
+      return ()
     Conversation.Store         _ -> putStrLn "asked to store expense!"
     Conversation.ReportBalance _ -> putStrLn "asked to report balance!"
     Conversation.NotifyPeer    _ -> putStrLn "asked to notify peer!"
