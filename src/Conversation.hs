@@ -2,7 +2,6 @@ module Conversation
   ( Conversation
   , Effect(..)
   , Expense(..)
-  , Question(..)
   , advance
   , start
   ) where
@@ -50,11 +49,6 @@ data Conversation
     , amount :: Amount
     }
   | AwaitingConfirmation Expense
-
-data Question
-  = AskAmount
-  | AskWhoPaid
-  | AskHowToSplit
 
 data Effect
   = Answer Reply
