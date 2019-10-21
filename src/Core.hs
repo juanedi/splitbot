@@ -1,8 +1,9 @@
 module Core (initialize, update, Model, Event(..), Effect(..)) where
 
+import qualified Conversation
+import           Conversation (Conversation)
 import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
-import           Core.Conversation (Conversation)
 import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
@@ -39,8 +40,7 @@ data UserId
 data Event
   = MessageReceived Message
 
-data Effect =
-  LogError String
+data Effect = LogError String | ConversationEffect Conversation.Effect
 
 initialize :: Settings -> Model
 initialize settings =
@@ -82,40 +82,31 @@ updateFromMessage msg model =
             ]
           )
         Just userId ->
-          let identifiedUsers = case userId of
-                UserA -> (getUser UserA model, getUser UserB model)
-                UserB -> (getUser UserB model, getUser UserB model)
-              (updatedCurrentUser, updatedPeer, effects) =
-                answerMessage msg identifiedUsers
-          in  ( (updateUser userId updatedCurrentUser)
-              . (updateUser (otherUserId userId) updatedPeer)
-              $ model
-              , effects
-              )
+          let currentUser = case userId of
+                UserA -> (getUser UserA model)
+                UserB -> (getUser UserB model)
+              (updatedCurrentUser, effects) = answerMessage msg currentUser
+          in  ((updateUser userId updatedCurrentUser) model, effects)
 
-answerMessage :: Message -> (User, User) -> (User, User, [Effect])
-answerMessage msg (currentUser, peer) =
-  -- TODO!
-  ( currentUser
-  , peer
-  , [ LogError
-        (  "Received message: "
-        ++ (Message.text msg)
-        ++ " from "
-        ++ (show (telegramId currentUser))
-        )
-    ]
-  )
+answerMessage :: Message -> User -> (User, [Effect])
+answerMessage msg currentUser =
+  let txt                          = Message.text msg
+      (maybeConversation, effects) = case conversationState currentUser of
+        Uninitialized         -> (Conversation.start txt (preset currentUser))
+        Inactive _            -> (Conversation.start txt (preset currentUser))
+        Active _ conversation -> (Conversation.advance txt conversation)
+  in  ( currentUser
+        { conversationState = case maybeConversation of
+                                Nothing -> Inactive (Message.chatId msg)
+                                Just c  -> Active (Message.chatId msg) c
+        }
+      , ConversationEffect <$> effects
+      )
 
 matchUserId :: Model -> Username -> Maybe UserId
 matchUserId model username | (telegramId . userA) model == username = Just UserA
                            | (telegramId . userB) model == username = Just UserB
                            | otherwise                              = Nothing
-
-otherUserId :: UserId -> UserId
-otherUserId userId = case userId of
-  UserA -> UserB
-  UserB -> UserA
 
 getUser :: UserId -> Model -> User
 getUser userId = case userId of

@@ -1,5 +1,6 @@
 module Runtime (Runtime, initialize, start, onMessage) where
 
+import qualified Conversation
 import qualified Core
 import qualified Network.HTTP.Client as Http
 import           Network.HTTP.Client.TLS (newTlsManager)
@@ -10,6 +11,7 @@ import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
 import           Telegram.Message (Message)
+import qualified Telegram.Reply as Reply
 
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
@@ -56,4 +58,10 @@ runEffects effects = case effects of
 
 runEffect :: Core.Effect -> IO ()
 runEffect effect = case effect of
-  Core.LogError msg -> putStrLn msg
+  Core.LogError           msg -> putStrLn msg
+  Core.ConversationEffect eff -> case eff of
+    Conversation.Answer reply ->
+      putStrLn ("asked to answer: " ++ Reply.text reply)
+    Conversation.Store         _ -> putStrLn "asked to store expense!"
+    Conversation.ReportBalance _ -> putStrLn "asked to report balance!"
+    Conversation.NotifyPeer    _ -> putStrLn "asked to notify peer!"
