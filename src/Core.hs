@@ -98,18 +98,21 @@ updateFromMessage msg model
           in  ((updateUser userId updatedCurrentUser) model, effects)
 
 answerMessage :: Message -> (User, User) -> (User, [Effect])
-answerMessage msg (currentUser, peer) =
-  let txt                          = Message.text msg
+answerMessage msg (currentUser, peer)
+  = let
+      txt                          = Message.text msg
       (maybeConversation, effects) = case conversationState currentUser of
-        Uninitialized         -> (Conversation.start txt (preset currentUser))
-        Inactive _            -> (Conversation.start txt (preset currentUser))
-        Active _ conversation -> (Conversation.advance txt conversation)
+        Uninitialized -> (Conversation.start txt (preset currentUser))
+        Inactive _    -> (Conversation.start txt (preset currentUser))
+        Active _ conversation ->
+          (Conversation.messageReceived txt conversation)
       userChatId = (Message.chatId msg)
       peerChatId = case conversationState peer of
         Uninitialized   -> Nothing
         Inactive chatId -> Just chatId
         Active chatId _ -> Just chatId
-  in  ( currentUser
+    in
+      ( currentUser
         { conversationState = case maybeConversation of
                                 Nothing -> Inactive userChatId
                                 Just c  -> Active userChatId c

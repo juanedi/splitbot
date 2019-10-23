@@ -2,7 +2,7 @@ module Conversation
   ( Conversation
   , Effect(..)
   , Expense(..)
-  , advance
+  , messageReceived
   , start
   ) where
 
@@ -70,8 +70,8 @@ start message preset =
           , [Answer (Description.confirm description)]
           )
 
-advance :: String -> Conversation -> Result
-advance userMessage conversation = case conversation of
+messageReceived :: String -> Conversation -> Result
+messageReceived userMessage conversation = case conversation of
   AwaitingDescription preset ->
     ( Just $ AwaitingAmount
       { preset      = preset
