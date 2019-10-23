@@ -96,12 +96,13 @@ runEffect runtime effect = case effect of
                                    expense
       return ()
 
-    Conversation.GetBalance _onBalance -> do
-      -- TODO: enqueue result!
-      _result <- Splitwise.getBalance (http runtime)
-                                      (splitwiseGroup runtime)
-                                      (Core.ownRole contactInfo)
-      return ()
+    Conversation.GetBalance onBalance -> do
+      result <- Splitwise.getBalance (http runtime)
+                                     (splitwiseGroup runtime)
+                                     (Core.ownRole contactInfo)
+      Queue.enqueue
+        (queue runtime)
+        (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
 
 
     -- Conversation.ReportBalance reply -> do

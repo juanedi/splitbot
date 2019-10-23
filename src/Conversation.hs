@@ -1,5 +1,6 @@
 module Conversation
   ( Conversation
+  , Event
   , Effect(..)
   , Expense(..)
   , messageReceived

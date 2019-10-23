@@ -1,4 +1,11 @@
-module Core (initialize, update, ContactInfo(..), Model, Event(..), Effect(..)) where
+module Core
+  ( initialize
+  , update
+  , ContactInfo(..)
+  , Model
+  , Event(..)
+  , Effect(..)
+  ) where
 
 import qualified Conversation
 import           Conversation (Conversation)
@@ -39,6 +46,7 @@ data UserId
 
 data Event
   = MessageReceived Message
+  | ConversationEvent UserId Conversation.Event
 
 data Effect
   = LogError String
@@ -78,6 +86,9 @@ initialize settings =
 update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
   MessageReceived msg -> updateFromMessage msg model
+  ConversationEvent _userId _event ->
+    -- TODO
+    (model, [])
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
 updateFromMessage msg model =
