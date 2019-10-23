@@ -3,8 +3,6 @@ module Telegram.LongPolling (run) where
 import           Control.Concurrent (threadDelay)
 import qualified Network.HTTP.Client as Http
 import           Network.HTTP.Client.TLS (newTlsManager)
-import qualified Queue
-import           Queue (Queue)
 import qualified Telegram as Telegram
 import qualified Telegram.Api as Api
 import qualified Telegram.Api.GetUpdates as GetUpdates
@@ -24,17 +22,19 @@ data FetchState
              [Update]
   | NeedMore (Maybe Integer)
 
-run :: Queue Message -> Telegram.Token -> IO ()
-run queue token = do
+type Callback = Message -> IO ()
+
+run :: Callback -> Telegram.Token -> IO ()
+run callback token = do
   http <- newTlsManager
   let state = State {http = http, token = token, fetchState = NeedMore Nothing}
-  loop queue state
+  loop callback state
 
-loop :: Queue Message -> State -> IO ()
-loop queue state = do
+loop :: Callback -> State -> IO ()
+loop callback state = do
   (message, state) <- getMessage state
-  Queue.enqueue queue message
-  loop queue state
+  callback message
+  loop callback state
 
 getMessage :: State -> IO (Message, State)
 getMessage state = case fetchState state of
