@@ -31,19 +31,19 @@ All settings are read from environment variables. Please take a look at the [Set
 
 ## Running
 
-Executing `stack build` will create two executables, each corresponding to one of the provided modes of operation supported by the Telegram API.
+Executing `stack build` will produce the `splitbot` executable. To run it, you just need to make sure the appropriate settings are defined in the environment and then pass n a command line argument to indicate the desired strategy for fetching telegram updates: `--server` or `--polling`:
 
-### splitbot-polling
+### --polling
 
-This program will use [long polling](https://en.wikipedia.org/wiki/Push_technology#Long_polling) as the method to fetch updates. In a nutshell: our program sends an HTTP request to Telegram, which will block and reply only when an update is actually available. As soon as we get a response we make another request to get notified when new messages arrive.
+The program will use [long polling](https://en.wikipedia.org/wiki/Push_technology#Long_polling) as the method to fetch updates. In a nutshell: our program sends an HTTP request to Telegram, which will block and reply only when an update is actually available. As soon as we get a response we make another request to get notified when new messages arrive.
 
 This is the recommended way to use the bot during development since setup is a lot simpler.
 
-### splitbot-server
+### --server
 
 This program gets push notifications from Telegram via webhooks. A web server is started and updates are posted as JSON at the `/#BOT_TOKEN#/updates` endpoint.
 
-Note that you'll need domain with a valid, non-wildcard SSL certificate. The server started by `splitbot-server` doesn't handle SSL certificates, so you should set up a proxy server (such as Apache or NGINX) on front of it. When doing this, take into account that the Telegram API requires you to present the full certificate chain. You'll find more detailed instructions [here](https://core.telegram.org/bots/webhooks).
+Note that you'll need domain with a valid, non-wildcard SSL certificate. The server started by `splitbot` doesn't handle SSL certificates, so you should set up a proxy server (such as Apache or NGINX) on front of it. When doing this, take into account that the Telegram API requires you to present the full certificate chain. You'll find more detailed instructions [here](https://core.telegram.org/bots/webhooks).
 
 After that, register the webhook as described [here](https://core.telegram.org/bots/webhooks).
 
