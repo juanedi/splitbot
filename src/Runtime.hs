@@ -1,5 +1,6 @@
-module Runtime (Runtime, initialize, start, onMessage) where
+module Runtime (startPolling, startServer) where
 
+import           Control.Concurrent.Async (concurrently)
 import qualified Conversation
 import qualified Core
 import qualified Network.HTTP.Client as Http
@@ -10,7 +11,9 @@ import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
+import qualified Telegram.LongPolling
 import           Telegram.Message (Message)
+import qualified Telegram.WebhookServer
 
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
@@ -20,8 +23,30 @@ data Runtime = Runtime
   , core :: Core.Model
   }
 
-initialize :: Settings -> IO Runtime
-initialize settings = do
+startPolling :: IO ()
+startPolling = do
+  settings <- Settings.fromEnv
+  runtime  <- Runtime.init settings
+  _        <- concurrently
+    (loop runtime)
+    (Telegram.LongPolling.run (onMessage runtime) (telegramToken runtime))
+  return ()
+
+startServer :: IO ()
+startServer = do
+  settings <- Settings.fromEnv
+  runtime  <- Runtime.init settings
+  _        <- concurrently
+    (loop runtime)
+    (Telegram.WebhookServer.run (Runtime.onMessage runtime)
+                                (Settings.telegramToken settings)
+                                (Settings.port settings)
+    )
+  return ()
+
+
+init :: Settings -> IO Runtime
+init settings = do
   queue       <- Queue.new
   httpManager <- newTlsManager
   return $ Runtime
@@ -37,9 +62,6 @@ initialize settings = do
 onMessage :: Runtime -> Message -> IO ()
 onMessage runtime =
   \message -> Queue.enqueue (queue runtime) (Core.MessageReceived message)
-
-start :: Runtime -> IO ()
-start runtime = loop runtime
 
 loop :: Runtime -> IO ()
 loop runtime = do
