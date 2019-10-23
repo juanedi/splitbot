@@ -42,10 +42,12 @@ data Event
 
 data Effect
   = LogError String
-  | ConversationEffect ContactInfo Splitwise.Role Conversation.Effect
+  | ConversationEffect ContactInfo Conversation.Effect
 
 data ContactInfo = ContactInfo
-  { chatId :: ChatId
+  { ownUserId :: UserId
+  , ownChatId :: ChatId
+  , ownRole :: Splitwise.Role
   , peerChatId :: Maybe ChatId
   }
 
@@ -78,10 +80,9 @@ update event model = case event of
   MessageReceived msg -> updateFromMessage msg model
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
-updateFromMessage msg model
-  = let username = Message.username msg
-    in
-      case matchUserId model username of
+updateFromMessage msg model =
+  let username = Message.username msg
+  in  case matchUserId model username of
         Nothing ->
           ( model
           , [ LogError
@@ -93,12 +94,26 @@ updateFromMessage msg model
           let (currentUser, peer) = case userId of
                 UserA -> (getUser UserA model, getUser UserB model)
                 UserB -> (getUser UserB model, getUser UserA model)
+
+              contactInfo =
+                (ContactInfo
+                  { ownUserId  = userId
+                  , ownChatId  = (Message.chatId msg)
+                  , ownRole    = (splitwiseRole currentUser)
+                  , peerChatId = case conversationState peer of
+                    Uninitialized   -> Nothing
+                    Inactive chatId -> Just chatId
+                    Active chatId _ -> Just chatId
+                  }
+                )
+
+
               (updatedCurrentUser, effects) =
-                answerMessage msg (currentUser, peer)
+                answerMessage msg contactInfo currentUser
           in  ((updateUser userId updatedCurrentUser) model, effects)
 
-answerMessage :: Message -> (User, User) -> (User, [Effect])
-answerMessage msg (currentUser, peer)
+answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
+answerMessage msg contactInfo currentUser
   = let
       txt                          = Message.text msg
       (maybeConversation, effects) = case conversationState currentUser of
@@ -107,22 +122,13 @@ answerMessage msg (currentUser, peer)
         Active _ conversation ->
           (Conversation.messageReceived txt conversation)
       userChatId = (Message.chatId msg)
-      peerChatId = case conversationState peer of
-        Uninitialized   -> Nothing
-        Inactive chatId -> Just chatId
-        Active chatId _ -> Just chatId
     in
       ( currentUser
         { conversationState = case maybeConversation of
                                 Nothing -> Inactive userChatId
                                 Just c  -> Active userChatId c
         }
-      , fmap
-        (ConversationEffect
-          (ContactInfo {chatId = userChatId, peerChatId = peerChatId})
-          (splitwiseRole currentUser)
-        )
-        effects
+      , fmap (ConversationEffect contactInfo) effects
       )
 
 matchUserId :: Model -> Username -> Maybe UserId

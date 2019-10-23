@@ -79,48 +79,57 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg -> putStrLn msg
-  Core.ConversationEffect contactInfo splitwiseRole eff -> case eff of
+  Core.LogError msg                       -> putStrLn msg
+  Core.ConversationEffect contactInfo eff -> case eff of
     Conversation.Answer reply -> do
       -- TODO: log error if something went wrong
       _ <- Telegram.sendMessage (http runtime)
                                 (telegramToken runtime)
-                                (Core.chatId contactInfo)
+                                (Core.ownChatId contactInfo)
                                 reply
       return ()
     Conversation.Store expense -> do
       -- TODO: notify user via telegram if storing the expense didn't work
       _ <- Splitwise.createExpense (http runtime)
-                                   splitwiseRole
+                                   (Core.ownRole contactInfo)
                                    (splitwiseGroup runtime)
                                    expense
       return ()
-    Conversation.ReportBalance reply -> do
-      -- TODO: remove continuation from this effect's payload and replace it by
-      -- another effect
-      result <- Splitwise.getBalance (http runtime)
-                                     (splitwiseGroup runtime)
-                                     splitwiseRole
 
-      _ <- Telegram.sendMessage (http runtime)
-                                (telegramToken runtime)
-                                (Core.chatId contactInfo)
-                                (reply result)
+    Conversation.GetBalance _onBalance -> do
+      -- TODO: enqueue result!
+      _result <- Splitwise.getBalance (http runtime)
+                                      (splitwiseGroup runtime)
+                                      (Core.ownRole contactInfo)
       return ()
-    Conversation.NotifyPeer reply -> do
-      -- TODO: get balance once and handle all relevant notifications as
-      -- different "send" effects inside Core.
-      case (Core.peerChatId contactInfo) of
-        Nothing ->
-          -- this means that we don't know the peer's chat id because they
-          -- haven't contacted us yet.
-          return ()
-        Just peerChatId -> do
-          result <- Splitwise.getBalance (http runtime)
-                                         (splitwiseGroup runtime)
-                                         splitwiseRole
-          _ <- Telegram.sendMessage (http runtime)
-                                    (telegramToken runtime)
-                                    peerChatId
-                                    (reply result)
-          return ()
+
+
+    -- Conversation.ReportBalance reply -> do
+    --   -- TODO: remove continuation from this effect's payload and replace it by
+    --   -- another effect
+    --   result <- Splitwise.getBalance (http runtime)
+    --                                  (splitwiseGroup runtime)
+    --                                  splitwiseRole
+
+    --   _ <- Telegram.sendMessage (http runtime)
+    --                             (telegramToken runtime)
+    --                             (Core.chatId contactInfo)
+    --                             (reply result)
+    --   return ()
+    -- Conversation.NotifyPeer reply -> do
+    --   -- TODO: get balance once and handle all relevant notifications as
+    --   -- different "send" effects inside Core.
+    --   case (Core.peerChatId contactInfo) of
+    --     Nothing ->
+    --       -- this means that we don't know the peer's chat id because they
+    --       -- haven't contacted us yet.
+    --       return ()
+    --     Just peerChatId -> do
+    --       result <- Splitwise.getBalance (http runtime)
+    --                                      (splitwiseGroup runtime)
+    --                                      splitwiseRole
+    --       _ <- Telegram.sendMessage (http runtime)
+    --                                 (telegramToken runtime)
+    --                                 peerChatId
+    --                                 (reply result)
+    --       return ()

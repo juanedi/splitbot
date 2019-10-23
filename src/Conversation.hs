@@ -50,11 +50,15 @@ data Conversation
     }
   | AwaitingConfirmation Expense
 
+data Event
+  = OnBalance (Maybe Balance)
+
 data Effect
   = Answer Reply
   | Store Expense
-  | ReportBalance (Maybe Balance -> Reply)
-  | NotifyPeer (Maybe Balance -> Reply)
+  | GetBalance (Maybe Balance -> Event)
+  -- | ReportBalance (Maybe Balance -> Reply)
+  -- | NotifyPeer (Maybe Balance -> Reply)
 
 type Result = (Maybe Conversation, [Effect] )
 
@@ -134,14 +138,7 @@ messageReceived userMessage conversation = case conversation of
         (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then
-      ( Nothing
-      , [ Answer holdOn
-        , Store expense
-        , ReportBalance done
-        , NotifyPeer (peerNotification expense)
-        ]
-      )
+    then (Nothing, [Answer holdOn, Store expense, GetBalance OnBalance])
     else (Nothing, [Answer cancelled])
 
 
