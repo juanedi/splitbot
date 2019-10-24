@@ -24,6 +24,3 @@ jobs:
           paths:
             - "/root/.stack"
             - ".stack-work"
-      - run:
-          name: Print stack path
-          command: stack path
