@@ -40,4 +40,5 @@ workflows:
       - build
       - publish_latest:
             requires: [ build ]
-            filters: { branches: { only: master } }
+            # filters: { branches: { only: master } }
+            filters: { branches: { only: ci-publish-latest } }
