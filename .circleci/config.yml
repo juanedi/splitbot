@@ -6,6 +6,10 @@ jobs:
     steps:
       - checkout
 
+      - restore_cache:
+          name: Restore Cached Dependencies
+          keys:
+            - splitbot-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
       - run:
           name: Resolve/Update Dependencies
           command: stack --no-terminal setup
@@ -14,6 +18,12 @@ jobs:
           name: Build
           command: stack --no-terminal build
 
+      - save_cache:
+          name: Cache Dependencies
+          key: splitbot-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
+          paths:
+            - "/root/.stack"
+            - ".stack-work"
       - run:
           name: Print stack path
           command: stack path
