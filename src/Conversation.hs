@@ -54,6 +54,7 @@ data Conversation
 
 data Event
   = OnBalance (Maybe Balance)
+  deriving Show
 
 data Effect
   = Answer Reply

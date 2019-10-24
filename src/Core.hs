@@ -43,10 +43,12 @@ data ConversationState
 data UserId
   = UserA
   | UserB
+  deriving Show
 
 data Event
   = MessageReceived Message
   | ConversationEvent UserId Conversation.Event
+  deriving Show
 
 data Effect
   = LogError String

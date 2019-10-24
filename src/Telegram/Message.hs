@@ -18,6 +18,7 @@ data Message = Message
   , username :: Username
   , text :: String
   }
+  deriving Show
 
 fromUpdate :: Update -> Message
 fromUpdate update =
