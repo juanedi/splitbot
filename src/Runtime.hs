@@ -105,18 +105,6 @@ runEffect runtime effect = case effect of
         (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
 
 
-    -- Conversation.ReportBalance reply -> do
-    --   -- TODO: remove continuation from this effect's payload and replace it by
-    --   -- another effect
-    --   result <- Splitwise.getBalance (http runtime)
-    --                                  (splitwiseGroup runtime)
-    --                                  splitwiseRole
-
-    --   _ <- Telegram.sendMessage (http runtime)
-    --                             (telegramToken runtime)
-    --                             (Core.chatId contactInfo)
-    --                             (reply result)
-    --   return ()
     -- Conversation.NotifyPeer reply -> do
     --   -- TODO: get balance once and handle all relevant notifications as
     --   -- different "send" effects inside Core.

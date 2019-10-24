@@ -60,7 +60,6 @@ data Effect
   = Answer Reply
   | Store Expense
   | GetBalance (Maybe Balance -> Event)
-  -- | ReportBalance (Maybe Balance -> Reply)
   -- | NotifyPeer (Maybe Balance -> Reply)
 
 start :: String -> Split -> (Maybe Conversation, [Effect])
@@ -76,9 +75,12 @@ start message preset =
           )
 
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
-update _event conversation =
-  -- TODO!
-  (Just conversation, [])
+update event _conversation = case event of
+  OnBalance maybeBalance ->
+    ( Nothing
+    , [ -- TODO: notify peer
+       Answer (notifyUser maybeBalance)]
+    )
 
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
 messageReceived userMessage conversation = case conversation of
@@ -144,15 +146,20 @@ messageReceived userMessage conversation = case conversation of
         (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
-    then (Nothing, [Answer holdOn, Store expense, GetBalance OnBalance])
+    then
+-- TODO: here we need to keep the conversation alive just so that the
+-- result of GetBalance is relayed back here.
+-- this is really awkward. we should probably make this state machine
+-- control inactive conversation states too.
+      (Just conversation, [Answer holdOn, Store expense, GetBalance OnBalance])
     else (Nothing, [Answer cancelled])
 
 
 holdOn :: Reply
 holdOn = Reply.plain "Hold on a sec... ⏳"
 
-done :: Maybe Balance -> Reply
-done balanceResult = Reply.plain $ case balanceResult of
+notifyUser :: Maybe Balance -> Reply
+notifyUser balanceResult = Reply.plain $ case balanceResult of
   Nothing      -> confirmation
   Just balance -> confirmation ++ balanceSummary balance
   where confirmation = "Done! 🎉 💸\n"
