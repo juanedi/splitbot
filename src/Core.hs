@@ -87,37 +87,38 @@ update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
   MessageReceived msg -> updateFromMessage msg model
   ConversationEvent userId conversationEvent ->
-    let (currentUser, peer) = getUserAndPeer userId model
-        (updatedConversationState, effects) =
-          case conversationState currentUser of
-            Uninitialized   -> (Uninitialized, [])
-            Inactive chatId -> (Inactive chatId, [])
-            Active chatId conversation ->
-              let (updatedConversation, conversationEffects) =
-                    Conversation.update conversationEvent conversation
+    let (updatedUser, effects) = relayEvent userId
+                                            (getUser userId model)
+                                            (getPeerChatId userId model)
+                                            conversationEvent
+    in  (updateUser userId updatedUser model, effects)
 
-                  contactInfo =
-                    (ContactInfo
-                      { ownUserId  = userId
-                      , ownChatId  = chatId
-                      , ownRole    = (splitwiseRole currentUser)
-                      , peerChatId = case conversationState peer of
-                        Uninitialized   -> Nothing
-                        Inactive chatId -> Just chatId
-                        Active chatId _ -> Just chatId
-                      }
-                    )
-              in  ( case updatedConversation of
-                    Nothing   -> Inactive chatId
-                    Just conv -> Active chatId conv
-                  , fmap (ConversationEffect contactInfo) conversationEffects
-                  )
-    in  ( updateUser
-          userId
-          (currentUser { conversationState = updatedConversationState })
-          model
-        , effects
-        )
+relayEvent
+  :: UserId -> User -> Maybe ChatId -> Conversation.Event -> (User, [Effect])
+relayEvent userId currentUser peerChatId event =
+  case conversationState currentUser of
+    Uninitialized -> (currentUser, [])
+    Inactive _    -> (currentUser, [])
+    Active chatId conversation ->
+      let (updatedConversation, conversationEffects) =
+            Conversation.update event conversation
+
+          contactInfo =
+            (ContactInfo
+              { ownUserId  = userId
+              , ownChatId  = chatId
+              , ownRole    = splitwiseRole currentUser
+              , peerChatId = peerChatId
+              }
+            )
+      in  ( currentUser
+            { conversationState = case updatedConversation of
+                                    Nothing   -> Inactive chatId
+                                    Just conv -> Active chatId conv
+            }
+          , fmap (ConversationEffect contactInfo) conversationEffects
+          )
+
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
 updateFromMessage msg model =
@@ -131,28 +132,20 @@ updateFromMessage msg model =
             ]
           )
         Just userId ->
-          let (currentUser, peer) = getUserAndPeer userId model
+          let currentUser = getUser userId model
 
               contactInfo =
                 (ContactInfo
                   { ownUserId  = userId
-                  , ownChatId  = (Message.chatId msg)
-                  , ownRole    = (splitwiseRole currentUser)
-                  , peerChatId = case conversationState peer of
-                    Uninitialized   -> Nothing
-                    Inactive chatId -> Just chatId
-                    Active chatId _ -> Just chatId
+                  , ownChatId  = Message.chatId msg
+                  , ownRole    = splitwiseRole currentUser
+                  , peerChatId = getPeerChatId userId model
                   }
                 )
 
               (updatedCurrentUser, effects) =
                 answerMessage msg contactInfo currentUser
           in  ((updateUser userId updatedCurrentUser) model, effects)
-
-getUserAndPeer :: UserId -> Model -> (User, User)
-getUserAndPeer userId model = case userId of
-  UserA -> (getUser UserA model, getUser UserB model)
-  UserB -> (getUser UserB model, getUser UserA model)
 
 answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
 answerMessage msg contactInfo currentUser
@@ -183,7 +176,18 @@ getUser userId = case userId of
   UserA -> userA
   UserB -> userB
 
+getPeer :: UserId -> Model -> User
+getPeer userId = case userId of
+  UserA -> userB
+  UserB -> userA
+
 updateUser :: UserId -> User -> Model -> Model
 updateUser userId user model = case userId of
   UserA -> model { userA = user }
   UserB -> model { userB = user }
+
+getPeerChatId :: UserId -> Model -> Maybe ChatId
+getPeerChatId userId model = case conversationState (getPeer userId model) of
+  Uninitialized   -> Nothing
+  Inactive chatId -> Just chatId
+  Active chatId _ -> Just chatId
