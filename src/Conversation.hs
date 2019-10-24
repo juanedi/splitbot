@@ -62,9 +62,7 @@ data Effect
   -- | ReportBalance (Maybe Balance -> Reply)
   -- | NotifyPeer (Maybe Balance -> Reply)
 
-type Result = (Maybe Conversation, [Effect] )
-
-start :: String -> Split -> Result
+start :: String -> Split -> (Maybe Conversation, [Effect])
 start message preset =
   let description = Description.read message
   in  case message of
@@ -76,12 +74,12 @@ start message preset =
           , [Answer (Description.confirm description)]
           )
 
-update :: Event -> Conversation -> Result
+update :: Event -> Conversation -> (Maybe Conversation, [Effect])
 update _event conversation =
   -- TODO!
   (Just conversation, [])
 
-messageReceived :: String -> Conversation -> Result
+messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
 messageReceived userMessage conversation = case conversation of
   AwaitingDescription preset ->
     ( Just $ AwaitingAmount
