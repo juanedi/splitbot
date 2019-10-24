@@ -24,3 +24,20 @@ jobs:
           paths:
             - "/root/.stack"
             - ".stack-work"
+
+  publish_latest:
+    docker:
+      - image: fpco/stack-build:lts-12.11
+    steps:
+      - run:
+          name: Build release docker image
+          command: echo "Not really!"
+
+workflows:
+  version: 2
+  master:
+    jobs:
+      - build
+      - publish_latest:
+            requires: [ build ]
+            filters: { branches: { only: master } }
