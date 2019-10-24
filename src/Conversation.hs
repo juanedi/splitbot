@@ -1,9 +1,11 @@
 module Conversation
   ( Conversation
+  , Event
   , Effect(..)
   , Expense(..)
-  , advance
+  , messageReceived
   , start
+  , update
   ) where
 
 import           Conversation.Expense (Expense)
@@ -50,15 +52,17 @@ data Conversation
     }
   | AwaitingConfirmation Expense
 
+data Event
+  = OnBalance Expense (Maybe Balance)
+  deriving Show
+
 data Effect
   = Answer Reply
+  | NotifyPeer Reply
   | Store Expense
-  | ReportBalance (Maybe Balance -> Reply)
-  | NotifyPeer (Maybe Balance -> Reply)
+  | GetBalance (Maybe Balance -> Event)
 
-type Result = (Maybe Conversation, [Effect] )
-
-start :: String -> Split -> Result
+start :: String -> Split -> (Maybe Conversation, [Effect])
 start message preset =
   let description = Description.read message
   in  case message of
@@ -70,8 +74,17 @@ start message preset =
           , [Answer (Description.confirm description)]
           )
 
-advance :: String -> Conversation -> Result
-advance userMessage conversation = case conversation of
+update :: Event -> Conversation -> (Maybe Conversation, [Effect])
+update event _conversation = case event of
+  OnBalance expense maybeBalance ->
+    ( Nothing
+    , [ Answer (ownNotification maybeBalance)
+      , NotifyPeer (peerNotification expense maybeBalance)
+      ]
+    )
+
+messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
+messageReceived userMessage conversation = case conversation of
   AwaitingDescription preset ->
     ( Just $ AwaitingAmount
       { preset      = preset
@@ -135,12 +148,12 @@ advance userMessage conversation = case conversation of
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
     then
-      ( Nothing
-      , [ Answer holdOn
-        , Store expense
-        , ReportBalance done
-        , NotifyPeer (peerNotification expense)
-        ]
+-- TODO: here we need to keep the conversation alive just so that the
+-- result of GetBalance is relayed back here.
+-- this is really awkward. we should probably make this state machine
+-- control inactive conversation states too.
+      ( Just conversation
+      , [Answer holdOn, Store expense, GetBalance (OnBalance expense)]
       )
     else (Nothing, [Answer cancelled])
 
@@ -148,8 +161,8 @@ advance userMessage conversation = case conversation of
 holdOn :: Reply
 holdOn = Reply.plain "Hold on a sec... ⏳"
 
-done :: Maybe Balance -> Reply
-done balanceResult = Reply.plain $ case balanceResult of
+ownNotification :: Maybe Balance -> Reply
+ownNotification balanceResult = Reply.plain $ case balanceResult of
   Nothing      -> confirmation
   Just balance -> confirmation ++ balanceSummary balance
   where confirmation = "Done! 🎉 💸\n"

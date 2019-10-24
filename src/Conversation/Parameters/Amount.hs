@@ -11,6 +11,7 @@ import           Text.Read (readMaybe)
 newtype Amount = Amount
   { value :: Integer
   }
+  deriving Show
 
 ask :: Reply
 ask = Reply.plain "How much?"

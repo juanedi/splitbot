@@ -11,3 +11,4 @@ data Expense = Expense
   , amount :: Amount
   , split :: Split
   }
+  deriving Show

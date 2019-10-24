@@ -11,8 +11,10 @@ import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
+import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import           Telegram.Message (Message)
+import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
 
 data Runtime = Runtime
@@ -79,48 +81,43 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg -> putStrLn msg
-  Core.ConversationEffect contactInfo splitwiseRole eff -> case eff of
-    Conversation.Answer reply -> do
-      -- TODO: log error if something went wrong
-      _ <- Telegram.sendMessage (http runtime)
-                                (telegramToken runtime)
-                                (Core.chatId contactInfo)
-                                reply
-      return ()
+  Core.LogError msg                       -> putStrLn msg
+  Core.ConversationEffect contactInfo eff -> case eff of
+    Conversation.Answer reply ->
+      sendMessage runtime (Core.ownChatId contactInfo) reply
+
+    Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
+      Nothing ->
+          -- this means that we don't know the peer's chat id because they
+          -- haven't contacted us yet.
+        return ()
+
+      Just peerChatId -> sendMessage runtime peerChatId reply
+
     Conversation.Store expense -> do
       -- TODO: notify user via telegram if storing the expense didn't work
       _ <- Splitwise.createExpense (http runtime)
-                                   splitwiseRole
+                                   (Core.ownRole contactInfo)
                                    (splitwiseGroup runtime)
                                    expense
       return ()
-    Conversation.ReportBalance reply -> do
-      -- TODO: remove continuation from this effect's payload and replace it by
-      -- another effect
+
+    Conversation.GetBalance onBalance -> do
       result <- Splitwise.getBalance (http runtime)
                                      (splitwiseGroup runtime)
-                                     splitwiseRole
+                                     (Core.ownRole contactInfo)
+      Queue.enqueue
+        (queue runtime)
+        (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
 
-      _ <- Telegram.sendMessage (http runtime)
-                                (telegramToken runtime)
-                                (Core.chatId contactInfo)
-                                (reply result)
-      return ()
-    Conversation.NotifyPeer reply -> do
-      -- TODO: get balance once and handle all relevant notifications as
-      -- different "send" effects inside Core.
-      case (Core.peerChatId contactInfo) of
-        Nothing ->
-          -- this means that we don't know the peer's chat id because they
-          -- haven't contacted us yet.
-          return ()
-        Just peerChatId -> do
-          result <- Splitwise.getBalance (http runtime)
-                                         (splitwiseGroup runtime)
-                                         splitwiseRole
-          _ <- Telegram.sendMessage (http runtime)
-                                    (telegramToken runtime)
-                                    peerChatId
-                                    (reply result)
-          return ()
+sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
+sendMessage runtime chatId reply = do
+  result <- Telegram.sendMessage (http runtime)
+                                 (telegramToken runtime)
+                                 chatId
+                                 reply
+  if result
+    then return ()
+    else
+    -- TODO: retry once and only log after second failure
+         putStrLn "ERROR! Could not send message via telegram API"
