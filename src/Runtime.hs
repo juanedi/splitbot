@@ -11,8 +11,10 @@ import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
 import qualified Telegram
+import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import           Telegram.Message (Message)
+import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
 
 data Runtime = Runtime
@@ -81,13 +83,8 @@ runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
   Core.LogError msg                       -> putStrLn msg
   Core.ConversationEffect contactInfo eff -> case eff of
-    Conversation.Answer reply -> do
-      -- TODO: log error if something went wrong
-      _ <- Telegram.sendMessage (http runtime)
-                                (telegramToken runtime)
-                                (Core.ownChatId contactInfo)
-                                reply
-      return ()
+    Conversation.Answer reply ->
+      sendMessage runtime (Core.ownChatId contactInfo) reply
 
     Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
       Nothing ->
@@ -95,13 +92,7 @@ runEffect runtime effect = case effect of
           -- haven't contacted us yet.
         return ()
 
-      Just peerChatId -> do
-        -- TODO: log error if something went wrong
-        _ <- Telegram.sendMessage (http runtime)
-                                  (telegramToken runtime)
-                                  peerChatId
-                                  reply
-        return ()
+      Just peerChatId -> sendMessage runtime peerChatId reply
 
     Conversation.Store expense -> do
       -- TODO: notify user via telegram if storing the expense didn't work
@@ -118,3 +109,15 @@ runEffect runtime effect = case effect of
       Queue.enqueue
         (queue runtime)
         (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
+
+sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
+sendMessage runtime chatId reply = do
+  result <- Telegram.sendMessage (http runtime)
+                                 (telegramToken runtime)
+                                 chatId
+                                 reply
+  if result
+    then return ()
+    else
+    -- TODO: retry once and only log after second failure
+         putStrLn "ERROR! Could not send message via telegram API"

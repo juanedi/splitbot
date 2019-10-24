@@ -61,7 +61,6 @@ data Effect
   | NotifyPeer Reply
   | Store Expense
   | GetBalance (Maybe Balance -> Event)
-  -- | NotifyPeer (Maybe Balance -> Reply)
 
 start :: String -> Split -> (Maybe Conversation, [Effect])
 start message preset =
