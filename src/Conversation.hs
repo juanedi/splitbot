@@ -5,6 +5,7 @@ module Conversation
   , Expense(..)
   , messageReceived
   , start
+  , update
   ) where
 
 import           Conversation.Expense (Expense)
@@ -74,6 +75,11 @@ start message preset =
           ( Just (AwaitingInitialConfirmation preset description)
           , [Answer (Description.confirm description)]
           )
+
+update :: Event -> Conversation -> Result
+update _event conversation =
+  -- TODO!
+  (Just conversation, [])
 
 messageReceived :: String -> Conversation -> Result
 messageReceived userMessage conversation = case conversation of

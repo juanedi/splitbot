@@ -86,9 +86,38 @@ initialize settings =
 update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
   MessageReceived msg -> updateFromMessage msg model
-  ConversationEvent _userId _event ->
-    -- TODO
-    (model, [])
+  ConversationEvent userId conversationEvent ->
+    let (currentUser, peer) = getUserAndPeer userId model
+        (updatedConversationState, effects) =
+          case conversationState currentUser of
+            Uninitialized   -> (Uninitialized, [])
+            Inactive chatId -> (Inactive chatId, [])
+            Active chatId conversation ->
+              let (updatedConversation, conversationEffects) =
+                    Conversation.update conversationEvent conversation
+
+                  contactInfo =
+                    (ContactInfo
+                      { ownUserId  = userId
+                      , ownChatId  = chatId
+                      , ownRole    = (splitwiseRole currentUser)
+                      , peerChatId = case conversationState peer of
+                        Uninitialized   -> Nothing
+                        Inactive chatId -> Just chatId
+                        Active chatId _ -> Just chatId
+                      }
+                    )
+              in  ( case updatedConversation of
+                    Nothing   -> Inactive chatId
+                    Just conv -> Active chatId conv
+                  , fmap (ConversationEffect contactInfo) conversationEffects
+                  )
+    in  ( updateUser
+          userId
+          (currentUser { conversationState = updatedConversationState })
+          model
+        , effects
+        )
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
 updateFromMessage msg model =
@@ -102,9 +131,7 @@ updateFromMessage msg model =
             ]
           )
         Just userId ->
-          let (currentUser, peer) = case userId of
-                UserA -> (getUser UserA model, getUser UserB model)
-                UserB -> (getUser UserB model, getUser UserA model)
+          let (currentUser, peer) = getUserAndPeer userId model
 
               contactInfo =
                 (ContactInfo
@@ -118,10 +145,14 @@ updateFromMessage msg model =
                   }
                 )
 
-
               (updatedCurrentUser, effects) =
                 answerMessage msg contactInfo currentUser
           in  ((updateUser userId updatedCurrentUser) model, effects)
+
+getUserAndPeer :: UserId -> Model -> (User, User)
+getUserAndPeer userId model = case userId of
+  UserA -> (getUser UserA model, getUser UserB model)
+  UserB -> (getUser UserB model, getUser UserA model)
 
 answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
 answerMessage msg contactInfo currentUser
