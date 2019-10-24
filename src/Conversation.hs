@@ -53,11 +53,12 @@ data Conversation
   | AwaitingConfirmation Expense
 
 data Event
-  = OnBalance (Maybe Balance)
+  = OnBalance Expense (Maybe Balance)
   deriving Show
 
 data Effect
   = Answer Reply
+  | NotifyPeer Reply
   | Store Expense
   | GetBalance (Maybe Balance -> Event)
   -- | NotifyPeer (Maybe Balance -> Reply)
@@ -76,10 +77,11 @@ start message preset =
 
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
 update event _conversation = case event of
-  OnBalance maybeBalance ->
+  OnBalance expense maybeBalance ->
     ( Nothing
-    , [ -- TODO: notify peer
-       Answer (notifyUser maybeBalance)]
+    , [ Answer (ownNotification maybeBalance)
+      , NotifyPeer (peerNotification expense maybeBalance)
+      ]
     )
 
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
@@ -151,15 +153,17 @@ messageReceived userMessage conversation = case conversation of
 -- result of GetBalance is relayed back here.
 -- this is really awkward. we should probably make this state machine
 -- control inactive conversation states too.
-      (Just conversation, [Answer holdOn, Store expense, GetBalance OnBalance])
+      ( Just conversation
+      , [Answer holdOn, Store expense, GetBalance (OnBalance expense)]
+      )
     else (Nothing, [Answer cancelled])
 
 
 holdOn :: Reply
 holdOn = Reply.plain "Hold on a sec... ⏳"
 
-notifyUser :: Maybe Balance -> Reply
-notifyUser balanceResult = Reply.plain $ case balanceResult of
+ownNotification :: Maybe Balance -> Reply
+ownNotification balanceResult = Reply.plain $ case balanceResult of
   Nothing      -> confirmation
   Just balance -> confirmation ++ balanceSummary balance
   where confirmation = "Done! 🎉 💸\n"

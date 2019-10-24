@@ -88,6 +88,21 @@ runEffect runtime effect = case effect of
                                 (Core.ownChatId contactInfo)
                                 reply
       return ()
+
+    Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
+      Nothing ->
+          -- this means that we don't know the peer's chat id because they
+          -- haven't contacted us yet.
+        return ()
+
+      Just peerChatId -> do
+        -- TODO: log error if something went wrong
+        _ <- Telegram.sendMessage (http runtime)
+                                  (telegramToken runtime)
+                                  peerChatId
+                                  reply
+        return ()
+
     Conversation.Store expense -> do
       -- TODO: notify user via telegram if storing the expense didn't work
       _ <- Splitwise.createExpense (http runtime)
@@ -103,22 +118,3 @@ runEffect runtime effect = case effect of
       Queue.enqueue
         (queue runtime)
         (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
-
-
-    -- Conversation.NotifyPeer reply -> do
-    --   -- TODO: get balance once and handle all relevant notifications as
-    --   -- different "send" effects inside Core.
-    --   case (Core.peerChatId contactInfo) of
-    --     Nothing ->
-    --       -- this means that we don't know the peer's chat id because they
-    --       -- haven't contacted us yet.
-    --       return ()
-    --     Just peerChatId -> do
-    --       result <- Splitwise.getBalance (http runtime)
-    --                                      (splitwiseGroup runtime)
-    --                                      splitwiseRole
-    --       _ <- Telegram.sendMessage (http runtime)
-    --                                 (telegramToken runtime)
-    --                                 peerChatId
-    --                                 (reply result)
-    --       return ()

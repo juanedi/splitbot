@@ -12,6 +12,7 @@ import qualified Telegram.Reply as Reply
 newtype Description = Description
   { text :: String
   }
+  deriving Show
 
 ask :: Reply
 ask = Reply.plain "👋 Hey! Please enter a description for the expense report."
