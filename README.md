@@ -1,4 +1,4 @@
-# splitbot
+# splitbot [![CircleCI](https://circleci.com/gh/juanedi/splitbot.svg?style=svg)](https://circleci.com/gh/juanedi/splitbot)
 
 This is a Telegram bot to interact with the Splitwise API. This isn't intended for everyone: it was developed to make my personal workflow easier (and to learn a little Haskell while I'm at it).
 
