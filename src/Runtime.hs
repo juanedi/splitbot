@@ -94,13 +94,15 @@ runEffect runtime effect = case effect of
 
       Just peerChatId -> sendMessage runtime peerChatId reply
 
-    Conversation.Store expense -> do
-      -- TODO: notify user via telegram if storing the expense didn't work
-      _ <- Splitwise.createExpense (http runtime)
-                                   (Core.ownRole contactInfo)
-                                   (splitwiseGroup runtime)
-                                   expense
-      return ()
+    Conversation.Store onOutcome expense -> do
+      outcome <- Splitwise.createExpense (http runtime)
+                                         (Core.ownRole contactInfo)
+                                         (splitwiseGroup runtime)
+                                         expense
+      Queue.enqueue
+        (queue runtime)
+        (Core.ConversationEvent (Core.ownUserId contactInfo) (onOutcome outcome)
+        )
 
     Conversation.GetBalance onBalance -> do
       result <- Splitwise.getBalance (http runtime)
