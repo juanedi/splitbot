@@ -47,6 +47,6 @@ Note that you'll need domain with a valid, non-wildcard SSL certificate. The ser
 
 After that, register the webhook as described [here](https://core.telegram.org/bots/webhooks).
 
-## Deploying
+## Releasing
 
-The `create-image` task in the Makefile will create a Docker image that's ready to run the application. The default command uses the webhook mechanism, but it can be overriden. For more information check out the [Dockerfile](https://github.com/juanedi/splitbot/blob/master/linux/Dockerfile-release).
+The `push-release` task in the Makefile will tag the current version and push it to Github. CI should take it from there, building a docker image and publishing it in Docker Hub.
