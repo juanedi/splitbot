@@ -21,7 +21,13 @@ jobs:
 
       - run:
           name: Build
-          command: stack --no-terminal build
+          command: stack --no-terminal build --copy-bins
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - Dockerfile-release
+            - bin/splitbot
 
       - save_cache:
           name: Cache Dependencies
