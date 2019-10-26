@@ -1,8 +1,13 @@
 version: 2.1
-jobs:
-  build:
+executors:
+  docker-publisher:
     docker:
       - image: fpco/stack-build:lts-12.11
+
+jobs:
+  build:
+    executor: docker-publisher
+
     steps:
       - checkout
 
@@ -26,8 +31,8 @@ jobs:
             - ".stack-work"
 
   publish_tag:
-    docker:
-      - image: fpco/stack-build:lts-12.11
+    executor: docker-publisher
+
     steps:
       - setup_remote_docker
 
