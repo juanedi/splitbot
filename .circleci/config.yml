@@ -25,7 +25,7 @@ jobs:
             - "/root/.stack"
             - ".stack-work"
 
-  publish_latest:
+  publish_tag:
     docker:
       - image: fpco/stack-build:lts-12.11
     steps:
