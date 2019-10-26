@@ -40,10 +40,11 @@ jobs:
     executor: docker-publisher
 
     steps:
-      - setup_remote_docker
       - attach_workspace:
           # Must be absolute path or relative path from working_directory
           at: .
+
+      - setup_remote_docker
 
       - run:
           name: Install Docker client
@@ -58,6 +59,12 @@ jobs:
           name: Build image
           command: |
             docker build -f Dockerfile-release -t $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH	 .
+
+      - run:
+          name: Publish image
+          command: |
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH
 
 workflows:
   version: 2
