@@ -22,7 +22,7 @@ resolver: lts-12.11
 
 ghc-options:
     # All packages
-    "$locals": -Wall -fno-warn-name-shadowing -XOverloadedStrings
+    "$locals": -Wall -Werror -fno-warn-name-shadowing -XOverloadedStrings
     # "$targets": -Werror
     # "$everything": -Wall
     # some-package: -DSOME_CPP_FLA

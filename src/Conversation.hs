@@ -20,6 +20,7 @@ import           Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import           Conversation.Parameters.Who
 import           Data.Maybe (fromMaybe)
+import qualified Splitwise
 import           Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
 import           Telegram.Reply (Reply)
@@ -51,15 +52,18 @@ data Conversation
     , amount :: Amount
     }
   | AwaitingConfirmation Expense
+  | SavingExpense Expense
+  | FetchingBalance Expense
 
 data Event
-  = OnBalance Expense (Maybe Balance)
+  = ExpenseCreationDone Splitwise.ExpenseOutcome
+  | OnBalance (Maybe Balance)
   deriving Show
 
 data Effect
   = Answer Reply
   | NotifyPeer Reply
-  | Store Expense
+  | Store (Splitwise.ExpenseOutcome -> Event) Expense
   | GetBalance (Maybe Balance -> Event)
 
 start :: String -> Split -> (Maybe Conversation, [Effect])
@@ -75,13 +79,23 @@ start message preset =
           )
 
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
-update event _conversation = case event of
-  OnBalance expense maybeBalance ->
+update event conversation = case (conversation, event) of
+  (SavingExpense expense, ExpenseCreationDone outcome) -> case outcome of
+    Splitwise.Created ->
+      (Just (FetchingBalance expense), [GetBalance OnBalance])
+    Splitwise.Failed ->
+      -- TODO: handle this error: maybe ask if we want to retry?
+      (Just conversation, [])
+
+  (FetchingBalance expense, OnBalance maybeBalance) ->
     ( Nothing
     , [ Answer (ownNotification maybeBalance)
       , NotifyPeer (peerNotification expense maybeBalance)
       ]
     )
+
+  (_, _) -> (Just conversation, [])
+
 
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
 messageReceived userMessage conversation = case conversation of
@@ -148,15 +162,14 @@ messageReceived userMessage conversation = case conversation of
 
   AwaitingConfirmation expense -> if Confirmation.read userMessage
     then
--- TODO: here we need to keep the conversation alive just so that the
--- result of GetBalance is relayed back here.
--- this is really awkward. we should probably make this state machine
--- control inactive conversation states too.
-      ( Just conversation
-      , [Answer holdOn, Store expense, GetBalance (OnBalance expense)]
+      ( Just (SavingExpense expense)
+      , [Answer holdOn, Store ExpenseCreationDone expense]
       )
     else (Nothing, [Answer cancelled])
 
+  SavingExpense   _ -> (Just conversation, [Answer holdOn])
+
+  FetchingBalance _ -> (Just conversation, [Answer holdOn])
 
 holdOn :: Reply
 holdOn = Reply.plain "Hold on a sec... ⏳"

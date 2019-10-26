@@ -4,6 +4,7 @@ module Splitwise
   , getBalance
   , Group
   , Role(..)
+  , ExpenseOutcome(..)
   )
 where
 
@@ -34,6 +35,9 @@ data Group = Group
 
 data Role = Owner | Peer
 
+data ExpenseOutcome = Created | Failed
+  deriving Show
+
 group :: String -> Integer -> Integer -> Group
 group token owner peer = Group
   { token = Api.Token (pack token)
@@ -42,8 +46,12 @@ group token owner peer = Group
   }
 
 createExpense
-  :: Http.Manager -> Role -> Group -> Conversation.Expense.Expense -> IO Bool
-createExpense http role group expense =
+  :: Http.Manager
+  -> Role
+  -> Group
+  -> Conversation.Expense.Expense
+  -> IO ExpenseOutcome
+createExpense http role group expense = do
   let description =
         (Description.text . Conversation.Expense.description) expense
       cost = (Amount.value . Conversation.Expense.amount) expense
@@ -52,22 +60,23 @@ createExpense http role group expense =
       split                           = Conversation.Expense.split expense
       (myOwedShare, buddysOwedShare)  = owedShares split role cost
       apiToken                        = token group
-  in  Api.createExpense http apiToken $ Api.Expense
-        { Api.payment     = False
-        , Api.cost        = cost
-        , Api.currency    = Currency.ARS
-        , Api.description = description
-        , Api.user1Share  = Api.UserShare
-          { Api.userId    = getId (owner group)
-          , Api.paidShare = ownerPaidShare
-          , Api.owedShare = myOwedShare
-          }
-        , Api.user2Share  = Api.UserShare
-          { Api.userId    = getId (peer group)
-          , Api.paidShare = peerPaidShare
-          , Api.owedShare = buddysOwedShare
-          }
-        }
+  success <- Api.createExpense http apiToken $ Api.Expense
+    { Api.payment     = False
+    , Api.cost        = cost
+    , Api.currency    = Currency.ARS
+    , Api.description = description
+    , Api.user1Share  = Api.UserShare
+      { Api.userId    = getId (owner group)
+      , Api.paidShare = ownerPaidShare
+      , Api.owedShare = myOwedShare
+      }
+    , Api.user2Share  = Api.UserShare
+      { Api.userId    = getId (peer group)
+      , Api.paidShare = peerPaidShare
+      , Api.owedShare = buddysOwedShare
+      }
+    }
+  return (if success then Created else Failed)
 
 getBalance :: Http.Manager -> Group -> Role -> IO (Maybe Balance)
 getBalance http group role = do
