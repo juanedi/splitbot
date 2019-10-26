@@ -43,8 +43,7 @@ jobs:
       - run:
           name: Build image
           command: |
-            TAG=`git describe --tags`
-            docker build -f linux/Dockerfile-release -t $DOCKER_IMAGE_NAME:$TAG .
+            docker build -f linux/Dockerfile-release -t $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH	 .
 
 workflows:
   version: 2
