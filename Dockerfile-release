@@ -12,6 +12,6 @@ ENV LC_ALL C.UTF-8
 
 WORKDIR /opt/app
 
-COPY ./linux/_build/splitbot /opt/app
+COPY ./bin/splitbot /opt/app
 
 CMD /opt/app/splitbot --server
