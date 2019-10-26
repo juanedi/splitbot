@@ -43,7 +43,7 @@ jobs:
       - run:
           name: Build image
           command: |
-            docker build -f linux/Dockerfile-release -t $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH	 .
+            docker build -f Dockerfile-release -t $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH	 .
 
 workflows:
   version: 2
