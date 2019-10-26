@@ -57,12 +57,14 @@ jobs:
       - run:
           name: Build image
           command: |
-            docker build -f Dockerfile-release -t $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH	 .
+            docker build -f Dockerfile-release -t $DOCKER_IMAGE_NAME .
 
       - run:
           name: Publish image
           command: |
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH
+            docker push $DOCKER_IMAGE_NAME
             docker push $DOCKER_IMAGE_NAME:$CIRCLE_BRANCH
 
 workflows:
@@ -72,5 +74,6 @@ workflows:
       - build
       - publish_tag:
             requires: [ build ]
+            # TODO: USE CIRCLE_TAG instead of CIRCLE_BRANCH
             # filters: { tags: { only: /^\d+\.\d+\.\d+/ } }
             filters: { branches: { only: ci-publish-latest } }
