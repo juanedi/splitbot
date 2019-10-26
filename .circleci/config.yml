@@ -22,8 +22,8 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - Dockerfile-release
-            - bin/splitbot
+            - "Dockerfile-release"
+            - "bin/splitbot"
 
       - save_cache:
           name: Cache Dependencies
@@ -59,4 +59,8 @@ workflows:
       - build
       - publish_tag:
             requires: [ build ]
-            filters: { tags: { only: /^\d+\.\d+\.\d+/ } }
+            filters:
+              tags:
+                only: /^\d+\.\d+\.\d+/
+              branches:
+                ignore: /.*/
