@@ -10,12 +10,15 @@ import           Queue (Queue)
 import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
+import qualified System.Directory
+import qualified System.FilePath.Posix as FilePath
 import qualified Telegram
 import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import           Telegram.Message (Message)
 import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
+import           Text.Read (readMaybe)
 
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
@@ -81,12 +84,11 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg                -> putStrLn msg
+  Core.LogError msg                          -> putStrLn msg
 
-  Core.PersistChatId userId chatId -> putStrLn
-    ("Would persist chat id " ++ show chatId ++ " for user " ++ show userId)
+  Core.PersistChatId      userId      chatId -> persistChatId userId chatId
 
-  Core.ConversationEffect contactInfo eff -> case eff of
+  Core.ConversationEffect contactInfo eff    -> case eff of
     Conversation.Answer reply ->
       sendMessage runtime (Core.ownChatId contactInfo) reply
 
@@ -127,3 +129,27 @@ sendMessage runtime chatId reply = do
     else
     -- TODO: retry once and only log after second failure
          putStrLn "ERROR! Could not send message via telegram API"
+
+persistChatId :: Core.UserId -> Telegram.Api.ChatId -> IO ()
+persistChatId userId (Telegram.Api.ChatId chatId) =
+  let (directoryPath, filePath) = chatIdPath userId
+  in  do
+        System.Directory.createDirectoryIfMissing True directoryPath
+        writeFile filePath (show chatId)
+
+readChatId :: Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
+readChatId userId =
+  -- TODO: use this to restore chat ids after boot
+  -- TODO: don't crash if file doesn't exist
+  let (_, filePath) = chatIdPath userId
+  in  do
+        contents <- readFile filePath
+        return $ fmap Telegram.Api.ChatId (readMaybe contents)
+
+chatIdPath :: Core.UserId -> (FilePath, FilePath)
+chatIdPath userId =
+  let userIdPart = case userId of
+        Core.UserA -> "a"
+        Core.UserB -> "b"
+      directoryPath = FilePath.joinPath ["data", "users", userIdPart]
+  in  (directoryPath, FilePath.joinPath [directoryPath, "chat_id"])

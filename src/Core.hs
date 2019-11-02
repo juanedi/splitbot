@@ -1,6 +1,7 @@
 module Core
   ( initialize
   , update
+  , UserId(..)
   , ContactInfo(..)
   , Model
   , Event(..)
