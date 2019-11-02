@@ -81,7 +81,11 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg                       -> putStrLn msg
+  Core.LogError msg                -> putStrLn msg
+
+  Core.PersistChatId userId chatId -> putStrLn
+    ("Would persist chat id " ++ show chatId ++ " for user " ++ show userId)
+
   Core.ConversationEffect contactInfo eff -> case eff of
     Conversation.Answer reply ->
       sendMessage runtime (Core.ownChatId contactInfo) reply
