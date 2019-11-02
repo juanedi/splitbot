@@ -1,6 +1,7 @@
 module Runtime (startPolling, startServer) where
 
 import           Control.Concurrent.Async (concurrently)
+import qualified Control.Exception
 import qualified Conversation
 import qualified Core
 import qualified Network.HTTP.Client as Http
@@ -140,11 +141,15 @@ persistChatId userId (Telegram.Api.ChatId chatId) =
 readChatId :: Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
 readChatId userId =
   -- TODO: use this to restore chat ids after boot
-  -- TODO: don't crash if file doesn't exist
   let (_, filePath) = chatIdPath userId
   in  do
-        contents <- readFile filePath
-        return $ fmap Telegram.Api.ChatId (readMaybe contents)
+        readResult <- tryReadFile filePath
+        return $ case readResult of
+          Left  _err     -> Nothing
+          Right contents -> fmap Telegram.Api.ChatId (readMaybe contents)
+
+tryReadFile :: FilePath -> IO (Either IOError String)
+tryReadFile path = Control.Exception.try (readFile path)
 
 chatIdPath :: Core.UserId -> (FilePath, FilePath)
 chatIdPath userId =
