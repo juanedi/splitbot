@@ -24,6 +24,7 @@ import           Text.Read (readMaybe)
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
   , splitwiseGroup :: Splitwise.Group
+  , storePath :: FilePath
   , http :: Http.Manager
   , queue :: Queue Core.Event
   , core :: Core.Model
@@ -62,6 +63,7 @@ init settings = do
           (Settings.userASplitwiseToken settings)
           (Settings.userASplitwiseId settings)
           (Settings.userBSplitwiseId settings)
+        , storePath = Settings.storePath settings
         , http           = httpManager
         , queue          = queue
         , core           = core
@@ -92,13 +94,14 @@ runEffect runtime effect = case effect of
   Core.LogError   msg    -> putStrLn msg
 
   Core.LoadChatId userId -> do
-    maybeChatId <- readChatId userId
+    maybeChatId <- readChatId (storePath runtime) userId
     case maybeChatId of
       Nothing     -> return ()
       Just chatId -> do
         Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
 
-  Core.PersistChatId      userId      chatId -> persistChatId userId chatId
+  Core.PersistChatId      userId      chatId ->
+    persistChatId (storePath runtime) userId chatId
 
   Core.ConversationEffect contactInfo eff    -> case eff of
     Conversation.Answer reply ->
@@ -142,16 +145,16 @@ sendMessage runtime chatId reply = do
     -- TODO: retry once and only log after second failure
          putStrLn "ERROR! Could not send message via telegram API"
 
-persistChatId :: Core.UserId -> Telegram.Api.ChatId -> IO ()
-persistChatId userId (Telegram.Api.ChatId chatId) =
-  let (directoryPath, filePath) = chatIdPath userId
+persistChatId :: FilePath -> Core.UserId -> Telegram.Api.ChatId -> IO ()
+persistChatId storePath userId (Telegram.Api.ChatId chatId) =
+  let (directoryPath, filePath) = chatIdPath storePath userId
   in  do
         System.Directory.createDirectoryIfMissing True directoryPath
         writeFile filePath (show chatId)
 
-readChatId :: Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
-readChatId userId =
-  let (_, filePath) = chatIdPath userId
+readChatId :: FilePath -> Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
+readChatId storePath userId =
+  let (_, filePath) = chatIdPath storePath userId
   in  do
         readResult <- tryReadFile filePath
         return $ case readResult of
@@ -161,10 +164,10 @@ readChatId userId =
 tryReadFile :: FilePath -> IO (Either IOError String)
 tryReadFile path = Control.Exception.try (readFile path)
 
-chatIdPath :: Core.UserId -> (FilePath, FilePath)
-chatIdPath userId =
+chatIdPath :: FilePath -> Core.UserId -> (FilePath, FilePath)
+chatIdPath storePath userId =
   let userIdPart = case userId of
         Core.UserA -> "a"
         Core.UserB -> "b"
-      directoryPath = FilePath.joinPath ["data", "users", userIdPart]
+      directoryPath = FilePath.joinPath [storePath, "users", userIdPart]
   in  (directoryPath, FilePath.joinPath [directoryPath, "chat_id"])

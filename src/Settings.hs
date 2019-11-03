@@ -23,6 +23,8 @@ data Settings = Settings
     telegramToken :: String
   , -- Port number for the server if using webhooks. This will be ignored if using long polling.
     port :: Int
+  , -- Were to store persisted data
+    storePath :: FilePath
   }
 
 fromEnv :: IO (Settings)
@@ -36,6 +38,7 @@ fromEnv =
     <*> readEnv "USER_B_SW_ID"
     <*> getEnv "TELEGRAM_TOKEN"
     <*> readEnv "PORT"
+    <*> getEnv "STORE_PATH"
 
 readEnv :: Read a => String -> IO a
 readEnv key = read <$> getEnv key
