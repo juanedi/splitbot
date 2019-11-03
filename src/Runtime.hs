@@ -55,15 +55,19 @@ init :: Settings -> IO Runtime
 init settings = do
   queue       <- Queue.new
   httpManager <- newTlsManager
-  return $ Runtime
-    { telegramToken  = Telegram.Token $ Settings.telegramToken settings
-    , splitwiseGroup = Splitwise.group (Settings.userASplitwiseToken settings)
-                                       (Settings.userASplitwiseId settings)
-                                       (Settings.userBSplitwiseId settings)
-    , http           = httpManager
-    , queue          = queue
-    , core           = Core.initialize settings
-    }
+  let (core, initialEffects) = Core.initialize settings
+      runtime                = Runtime
+        { telegramToken  = Telegram.Token $ Settings.telegramToken settings
+        , splitwiseGroup = Splitwise.group
+          (Settings.userASplitwiseToken settings)
+          (Settings.userASplitwiseId settings)
+          (Settings.userBSplitwiseId settings)
+        , http           = httpManager
+        , queue          = queue
+        , core           = core
+        }
+  runEffects runtime initialEffects
+  return runtime
 
 onMessage :: Runtime -> Message -> IO ()
 onMessage runtime =
@@ -90,8 +94,8 @@ runEffect runtime effect = case effect of
   Core.LoadChatId userId -> do
     maybeChatId <- readChatId userId
     case maybeChatId of
-      Nothing -> return ()
-      Just chatId ->
+      Nothing     -> return ()
+      Just chatId -> do
         Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
 
   Core.PersistChatId      userId      chatId -> persistChatId userId chatId

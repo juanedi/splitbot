@@ -65,11 +65,12 @@ data ContactInfo = ContactInfo
   , peerChatId :: Maybe ChatId
   }
 
-initialize :: Settings -> Model
-initialize settings =
-  let presetA = Settings.userASplitwisePreset settings
+initialize :: Settings -> (Model, [Effect])
+initialize settings
+  = let
+      presetA = Settings.userASplitwisePreset settings
       presetB = 100 - presetA
-  in  Model
+      model   = Model
         { userA = User
           { telegramId        = (Telegram.Username.fromString
                                   (Settings.userATelegramId settings)
@@ -87,6 +88,8 @@ initialize settings =
           , conversationState = Uninitialized
           }
         }
+    in
+      (model, [LoadChatId UserA, LoadChatId UserB])
 
 
 update :: Event -> Model -> (Model, [Effect])
