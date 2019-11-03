@@ -1,6 +1,7 @@
 module Core
   ( initialize
   , update
+  , UserId(..)
   , ContactInfo(..)
   , Model
   , Event(..)
@@ -46,12 +47,15 @@ data UserId
   deriving Show
 
 data Event
-  = MessageReceived Message
+  = ChatIdLoaded UserId ChatId
+  | MessageReceived Message
   | ConversationEvent UserId Conversation.Event
   deriving Show
 
 data Effect
   = LogError String
+  | LoadChatId UserId
+  | PersistChatId UserId ChatId
   | ConversationEffect ContactInfo Conversation.Effect
 
 data ContactInfo = ContactInfo
@@ -61,11 +65,12 @@ data ContactInfo = ContactInfo
   , peerChatId :: Maybe ChatId
   }
 
-initialize :: Settings -> Model
-initialize settings =
-  let presetA = Settings.userASplitwisePreset settings
+initialize :: Settings -> (Model, [Effect])
+initialize settings
+  = let
+      presetA = Settings.userASplitwisePreset settings
       presetB = 100 - presetA
-  in  Model
+      model   = Model
         { userA = User
           { telegramId        = (Telegram.Username.fromString
                                   (Settings.userATelegramId settings)
@@ -83,11 +88,16 @@ initialize settings =
           , conversationState = Uninitialized
           }
         }
+    in
+      (model, [LoadChatId UserA, LoadChatId UserB])
 
 
 update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
-  MessageReceived msg -> updateFromMessage msg model
+  ChatIdLoaded userId chatId -> --
+    (updateChatId userId chatId model, [])
+  MessageReceived msg -> --
+    updateFromMessage msg model
   ConversationEvent userId conversationEvent ->
     let (updatedUser, effects) = relayEvent userId
                                             (getUser userId model)
@@ -121,11 +131,21 @@ relayEvent userId currentUser peerChatId event =
           , fmap (ConversationEffect contactInfo) conversationEffects
           )
 
+updateChatId :: UserId -> ChatId -> Model -> Model
+updateChatId userId chatId model =
+  let user         = getUser userId model
+      updatedState = case conversationState user of
+        Uninitialized -> Inactive chatId
+        _             -> conversationState user
+  in  updateUser userId (user { conversationState = updatedState }) model
+
+
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
-updateFromMessage msg model =
-  let username = Message.username msg
-  in  case matchUserId model username of
+updateFromMessage msg model
+  = let username = Message.username msg
+    in
+      case matchUserId model username of
         Nothing ->
           ( model
           , [ LogError
@@ -134,20 +154,28 @@ updateFromMessage msg model =
             ]
           )
         Just userId ->
-          let currentUser = getUser userId model
+          let
+            currentUser = getUser userId model
 
-              contactInfo =
-                (ContactInfo
-                  { ownUserId  = userId
-                  , ownChatId  = Message.chatId msg
-                  , ownRole    = splitwiseRole currentUser
-                  , peerChatId = getPeerChatId userId model
-                  }
-                )
+            chatId      = Message.chatId msg
 
-              (updatedCurrentUser, effects) =
-                answerMessage msg contactInfo currentUser
-          in  ((updateUser userId updatedCurrentUser) model, effects)
+            contactInfo =
+              (ContactInfo
+                { ownUserId  = userId
+                , ownChatId  = chatId
+                , ownRole    = splitwiseRole currentUser
+                , peerChatId = getPeerChatId userId model
+                }
+              )
+
+            (updatedCurrentUser, effects) =
+              answerMessage msg contactInfo currentUser
+          in
+            ( updateUser userId updatedCurrentUser model
+            , if shouldStoreChatId chatId currentUser
+              then PersistChatId userId chatId : effects
+              else effects
+            )
 
 answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
 answerMessage msg contactInfo currentUser
@@ -167,6 +195,13 @@ answerMessage msg contactInfo currentUser
         }
       , fmap (ConversationEffect contactInfo) effects
       )
+
+shouldStoreChatId :: ChatId -> User -> Bool
+shouldStoreChatId chatId user = case conversationState user of
+  Uninitialized    -> True
+  Inactive chatId_ -> chatId /= chatId_
+  Active chatId_ _ -> chatId /= chatId_
+
 
 matchUserId :: Model -> Username -> Maybe UserId
 matchUserId model username | (telegramId . userA) model == username = Just UserA

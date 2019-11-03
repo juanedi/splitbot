@@ -3,3 +3,4 @@ splitbot.cabal
 *~
 /bin/
 /linux/_build
+/data/

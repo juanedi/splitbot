@@ -1,6 +1,7 @@
 module Runtime (startPolling, startServer) where
 
 import           Control.Concurrent.Async (concurrently)
+import qualified Control.Exception
 import qualified Conversation
 import qualified Core
 import qualified Network.HTTP.Client as Http
@@ -10,16 +11,20 @@ import           Queue (Queue)
 import qualified Settings
 import           Settings (Settings)
 import qualified Splitwise
+import qualified System.Directory
+import qualified System.FilePath.Posix as FilePath
 import qualified Telegram
 import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import           Telegram.Message (Message)
 import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
+import           Text.Read (readMaybe)
 
 data Runtime = Runtime
   { telegramToken :: Telegram.Token
   , splitwiseGroup :: Splitwise.Group
+  , storePath :: FilePath
   , http :: Http.Manager
   , queue :: Queue Core.Event
   , core :: Core.Model
@@ -51,15 +56,20 @@ init :: Settings -> IO Runtime
 init settings = do
   queue       <- Queue.new
   httpManager <- newTlsManager
-  return $ Runtime
-    { telegramToken  = Telegram.Token $ Settings.telegramToken settings
-    , splitwiseGroup = Splitwise.group (Settings.userASplitwiseToken settings)
-                                       (Settings.userASplitwiseId settings)
-                                       (Settings.userBSplitwiseId settings)
-    , http           = httpManager
-    , queue          = queue
-    , core           = Core.initialize settings
-    }
+  let (core, initialEffects) = Core.initialize settings
+      runtime                = Runtime
+        { telegramToken  = Telegram.Token $ Settings.telegramToken settings
+        , splitwiseGroup = Splitwise.group
+          (Settings.userASplitwiseToken settings)
+          (Settings.userASplitwiseId settings)
+          (Settings.userBSplitwiseId settings)
+        , storePath = Settings.storePath settings
+        , http           = httpManager
+        , queue          = queue
+        , core           = core
+        }
+  runEffects runtime initialEffects
+  return runtime
 
 onMessage :: Runtime -> Message -> IO ()
 onMessage runtime =
@@ -81,8 +91,19 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg                       -> putStrLn msg
-  Core.ConversationEffect contactInfo eff -> case eff of
+  Core.LogError   msg    -> putStrLn msg
+
+  Core.LoadChatId userId -> do
+    maybeChatId <- readChatId (storePath runtime) userId
+    case maybeChatId of
+      Nothing     -> return ()
+      Just chatId -> do
+        Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
+
+  Core.PersistChatId      userId      chatId ->
+    persistChatId (storePath runtime) userId chatId
+
+  Core.ConversationEffect contactInfo eff    -> case eff of
     Conversation.Answer reply ->
       sendMessage runtime (Core.ownChatId contactInfo) reply
 
@@ -123,3 +144,30 @@ sendMessage runtime chatId reply = do
     else
     -- TODO: retry once and only log after second failure
          putStrLn "ERROR! Could not send message via telegram API"
+
+persistChatId :: FilePath -> Core.UserId -> Telegram.Api.ChatId -> IO ()
+persistChatId storePath userId (Telegram.Api.ChatId chatId) =
+  let (directoryPath, filePath) = chatIdPath storePath userId
+  in  do
+        System.Directory.createDirectoryIfMissing True directoryPath
+        writeFile filePath (show chatId)
+
+readChatId :: FilePath -> Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
+readChatId storePath userId =
+  let (_, filePath) = chatIdPath storePath userId
+  in  do
+        readResult <- tryReadFile filePath
+        return $ case readResult of
+          Left  _err     -> Nothing
+          Right contents -> fmap Telegram.Api.ChatId (readMaybe contents)
+
+tryReadFile :: FilePath -> IO (Either IOError String)
+tryReadFile path = Control.Exception.try (readFile path)
+
+chatIdPath :: FilePath -> Core.UserId -> (FilePath, FilePath)
+chatIdPath storePath userId =
+  let userIdPart = case userId of
+        Core.UserA -> "a"
+        Core.UserB -> "b"
+      directoryPath = FilePath.joinPath [storePath, "users", userIdPart]
+  in  (directoryPath, FilePath.joinPath [directoryPath, "chat_id"])

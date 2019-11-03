@@ -31,7 +31,7 @@ type Token = String
 
 data ChatId =
   ChatId Integer
-  deriving (Show)
+  deriving (Eq, Show)
 
 type GetUpdatesResult = Either GetUpdatesError GetUpdates.UpdateResponse
 
