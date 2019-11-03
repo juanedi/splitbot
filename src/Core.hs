@@ -94,10 +94,10 @@ initialize settings
 
 update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
-  ChatIdLoaded _userId _chatId ->
-    -- TODO
-    (model, [])
-  MessageReceived msg -> updateFromMessage msg model
+  ChatIdLoaded userId chatId -> --
+    (updateChatId userId chatId model, [])
+  MessageReceived msg -> --
+    updateFromMessage msg model
   ConversationEvent userId conversationEvent ->
     let (updatedUser, effects) = relayEvent userId
                                             (getUser userId model)
@@ -131,6 +131,15 @@ relayEvent userId currentUser peerChatId event =
           , fmap (ConversationEffect contactInfo) conversationEffects
           )
 
+updateChatId :: UserId -> ChatId -> Model -> Model
+updateChatId userId chatId model =
+  let user         = getUser userId model
+      updatedState = case conversationState user of
+        Uninitialized -> Inactive chatId
+        _             -> conversationState user
+  in  updateUser userId (user { conversationState = updatedState }) model
+
+
 
 updateFromMessage :: Message -> Model -> (Model, [Effect])
 updateFromMessage msg model
@@ -162,7 +171,7 @@ updateFromMessage msg model
             (updatedCurrentUser, effects) =
               answerMessage msg contactInfo currentUser
           in
-            ( (updateUser userId updatedCurrentUser) model
+            ( updateUser userId updatedCurrentUser model
             , if shouldStoreChatId chatId currentUser
               then PersistChatId userId chatId : effects
               else effects
