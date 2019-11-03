@@ -85,7 +85,14 @@ runEffects runtime effects = case effects of
 
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect = case effect of
-  Core.LogError msg                          -> putStrLn msg
+  Core.LogError   msg    -> putStrLn msg
+
+  Core.LoadChatId userId -> do
+    maybeChatId <- readChatId userId
+    case maybeChatId of
+      Nothing -> return ()
+      Just chatId ->
+        Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
 
   Core.PersistChatId      userId      chatId -> persistChatId userId chatId
 
@@ -140,7 +147,6 @@ persistChatId userId (Telegram.Api.ChatId chatId) =
 
 readChatId :: Core.UserId -> IO (Maybe (Telegram.Api.ChatId))
 readChatId userId =
-  -- TODO: use this to restore chat ids after boot
   let (_, filePath) = chatIdPath userId
   in  do
         readResult <- tryReadFile filePath

@@ -47,12 +47,14 @@ data UserId
   deriving Show
 
 data Event
-  = MessageReceived Message
+  = ChatIdLoaded UserId ChatId
+  | MessageReceived Message
   | ConversationEvent UserId Conversation.Event
   deriving Show
 
 data Effect
   = LogError String
+  | LoadChatId UserId
   | PersistChatId UserId ChatId
   | ConversationEffect ContactInfo Conversation.Effect
 
@@ -89,6 +91,9 @@ initialize settings =
 
 update :: Event -> Model -> (Model, [Effect])
 update event model = case event of
+  ChatIdLoaded _userId _chatId ->
+    -- TODO
+    (model, [])
   MessageReceived msg -> updateFromMessage msg model
   ConversationEvent userId conversationEvent ->
     let (updatedUser, effects) = relayEvent userId
