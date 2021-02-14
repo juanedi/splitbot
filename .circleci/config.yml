@@ -53,14 +53,10 @@ workflows:
   build-release:
     jobs:
       - build
-      # - build:
-      #     filters:
-      #       tags:
-      #         only: /^\d+\.\d+\.\d+/
-      # - publish_tag:
-      #     requires: [ build ]
-      #     filters:
-      #       tags:
-      #         only: /^\d+\.\d+\.\d+/
-      #       branches:
-      #         ignore: /.*/
+      - publish_tag:
+          requires: [ build ]
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+/
+            branches:
+              ignore: /.*/
