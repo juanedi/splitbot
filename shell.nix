@@ -7,7 +7,7 @@ in with nixpkgs;
 pkgs.mkShell {
   buildInputs = [
     niv.niv
-    entr
+    watchexec
 
     ghc
     haskellPackages.ormolu

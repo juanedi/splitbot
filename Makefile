@@ -10,8 +10,8 @@ build:
     -o bin/splitbot \
     app/Main.hs
 
-build-watch:
-	stack build --file-watch
+watch:
+	watchexec --exts hs -r -- 'make build && bin/splitbot --polling'
 
 push-release:
 	@[ "${TAG}" ] || (echo "TAG variable not set"; exit 1)
