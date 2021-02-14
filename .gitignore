@@ -1,6 +1,4 @@
-.stack-work/
-splitbot.cabal
 *~
+/_build/
 /bin/
-/linux/_build
 /data/

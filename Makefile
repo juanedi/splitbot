@@ -1,3 +1,15 @@
+build:
+	ghc \
+    --make \
+    -odir _build \
+    -hidir _build \
+    -XOverloadedStrings \
+    -fwarn-unused-imports -Wno-name-shadowing \
+    -threaded -rtsopts -with-rtsopts=-N \
+    -isrc \
+    -o bin/splitbot \
+    app/Main.hs
+
 build-watch:
 	stack build --file-watch
 
