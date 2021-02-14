@@ -2,35 +2,31 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: fpco/stack-build:lts-12.11
+      - image: nixos/nix:2.3.6
 
     steps:
+      - run:
+          name: Updating channels
+          command: nix-channel --update
+
+      - run:
+          name: Install system dependencies
+          command: nix-env -i openssh git
+
       - checkout
 
-      - restore_cache:
-          name: Restore Cached Dependencies
-          keys:
-            - splitbot-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
       - run:
-          name: Resolve/Update Dependencies
-          command: stack --no-terminal setup
+          name: Build docker image
+          command: nix-build --show-trace --argstr imageName $DOCKER_IMAGE_NAME --argstr tag ${CIRCLE_TAG:-$CIRCLE_BRANCH} nix/docker_image.nix
 
       - run:
-          name: Build
-          command: stack --no-terminal build --copy-bins
+          name: Hard-linking result to current directory
+          command: ln $(readlink -f result) ./docker-image-splitbot.tar.gz
 
       - persist_to_workspace:
           root: .
           paths:
-            - "Dockerfile-release"
-            - "bin/splitbot"
-
-      - save_cache:
-          name: Cache Dependencies
-          key: splitbot-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
-          paths:
-            - "/root/.stack"
-            - ".stack-work"
+          - "./docker-image-splitbot.tar.gz"
 
   publish_tag:
     machine: true
@@ -40,30 +36,31 @@ jobs:
           at: .
 
       - run:
-          name: Build image
+          name: Load image
           command: |
-            docker build -f Dockerfile-release -t $DOCKER_IMAGE_NAME .
+            docker load -i docker-image-splitbot.tar.gz
 
       - run:
           name: Publish image
           command: |
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:$CIRCLE_TAG
-            docker push $DOCKER_IMAGE_NAME
+            docker tag $DOCKER_IMAGE_NAME:$CIRCLE_TAG $DOCKER_IMAGE_NAME:latest
             docker push $DOCKER_IMAGE_NAME:$CIRCLE_TAG
+            docker push $DOCKER_IMAGE_NAME:latest
 
 workflows:
   version: 2
   build-release:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+/
-      - publish_tag:
-          requires: [ build ]
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+/
-            branches:
-              ignore: /.*/
+      - build
+      # - build:
+      #     filters:
+      #       tags:
+      #         only: /^\d+\.\d+\.\d+/
+      # - publish_tag:
+      #     requires: [ build ]
+      #     filters:
+      #       tags:
+      #         only: /^\d+\.\d+\.\d+/
+      #       branches:
+      #         ignore: /.*/
