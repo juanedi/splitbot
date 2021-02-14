@@ -3,7 +3,7 @@
 let
   sources = import ./sources.nix;
   pkgs = import sources.nixpkgs { };
-  splitbot = import ./splitbot.nix { inherit splitbot; };
+  splitbot = import ./splitbot.nix { inherit tag; };
 
 in pkgs.dockerTools.buildLayeredImage {
   name = imageName;
