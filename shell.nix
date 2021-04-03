@@ -9,6 +9,7 @@ pkgs.mkShell {
     niv.niv
     watchexec
 
+    cabal-install
     ghc
     haskellPackages.ormolu
   ];
