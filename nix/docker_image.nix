@@ -14,6 +14,9 @@ in pkgs.dockerTools.buildLayeredImage {
   ];
 
   config = {
+    Env = [
+      "LC_ALL=C.UTF-8"
+    ];
     Cmd = [ "/bin/splitbot" "--server" ];
     WorkingDir = "/";
   };
