@@ -1,17 +1,5 @@
-build:
-	ghc \
-    --make \
-    -odir _build \
-    -hidir _build \
-    -XOverloadedStrings \
-    -fwarn-unused-imports -Wno-name-shadowing \
-    -threaded -rtsopts -with-rtsopts=-N \
-    -isrc \
-    -o bin/splitbot \
-    app/Main.hs
-
 watch:
-	watchexec --exts hs -r -- 'make build && bin/splitbot --polling'
+	watchexec --exts hs -r -- 'cabal build && cabal run splitbot -- --polling'
 
 push-release:
 	@[ "${TAG}" ] || (echo "TAG variable not set"; exit 1)
