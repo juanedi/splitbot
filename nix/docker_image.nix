@@ -8,7 +8,10 @@ let
 in pkgs.dockerTools.buildLayeredImage {
   name = imageName;
   inherit tag;
-  contents = [ splitbot ];
+  contents = [
+    pkgs.cacert
+    splitbot
+  ];
 
   config = {
     Cmd = [ "/bin/splitbot" "--server" ];
