@@ -1,6 +1,7 @@
 *~
-/_build/
-/bin/
 /data/
 
 /.envrc.local
+
+dist
+dist-newstyle
