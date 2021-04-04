@@ -6,11 +6,7 @@ import System.Exit
 
 main :: IO ()
 main = do
-  lcAll <- System.Environment.lookupEnv "LC_ALL"
   args <- System.Environment.getArgs
-  case lcAll of
-    Nothing -> pure ()
-    Just val -> putStrLn ("------- LC_ALL: " ++ val)
   case args of
     ["--polling"] -> do
       putStrLn "========================================="
