@@ -1,7 +1,7 @@
 let
   sources = import ./nix/sources.nix;
-  nixpkgs = import sources.nixpkgs { };
   niv = import sources.niv { };
+  nixpkgs = import sources.nixpkgs-unstable { };
   splitbot = import ./default.nix;
 in with nixpkgs;
 pkgs.mkShell {
