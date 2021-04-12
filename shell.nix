@@ -12,6 +12,7 @@ pkgs.mkShell {
     ghcid
     cabal-install
     haskellPackages.ormolu
+    haskellPackages.hasktags
   ];
 
   inputsFrom = [ splitbot.env ];

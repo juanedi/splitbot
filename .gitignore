@@ -3,5 +3,7 @@
 
 /.envrc.local
 
+cabal.project.local
 dist
 dist-newstyle
+TAGS
