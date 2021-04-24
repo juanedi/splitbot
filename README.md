@@ -6,14 +6,9 @@ This is a Telegram bot to interact with the Splitwise API. This isn't intended f
 
 ### Development environment
 
-This is a pretty standard [Haskell Stack](https://haskellstack.org) project. After installing Stack, you should be able to fetch the corresponding version of GHC and build the project as follows
+This is a cabal project set up to be built using nix.
 
-```
-> stack setup
-> stack build
-```
-
-You can also run `make build-watch` to build the code and watch for file changes.
+To set up your development environment install nix on your system, `cd` into the project root and run `nix-shell`. That should start a shell with all of the dependencies you need to compile and run the project (ghc included!). If you have direnv installed, the `.envrc` file should take care of setting up the environment without the need to run `nix-shell`.
 
 ### Splitwise token
 
@@ -25,21 +20,23 @@ At the time of writing those docs aren't very good, so you might want to look at
 
 Please refer to the [Telegram bot API docs](https://core.telegram.org/bots#3-how-do-i-create-a-bot) for instruction on how to create a bot. TL;DR: Talk to `@BotFather` on Telegram, follow its instructions and take note of the token it will give you.
 
+## Running
+
+You run `nix build` to build the whole thing from scratch. For development, I suggest you use `ghcid -r`, to compile, watch for changes and restart the bot when needed.
+
 ## Configuration
 
 All settings are read from environment variables. Please take a look at the [Settings module](https://github.com/juanedi/splitbot/blob/master/src/Settings.hs) for a complete list of required variables.
 
-## Running
+NOTE: the `PORT` variable will determine which of the two modes of operation we'll use to contact the Telegram API (long polling / webhooks).
 
-Executing `stack build` will produce the `splitbot` executable. To run it, you just need to make sure the appropriate settings are defined in the environment and then pass n a command line argument to indicate the desired strategy for fetching telegram updates: `--server` or `--polling`:
-
-### --polling
+### Long polling (PORT variable unset)
 
 The program will use [long polling](https://en.wikipedia.org/wiki/Push_technology#Long_polling) as the method to fetch updates. In a nutshell: our program sends an HTTP request to Telegram, which will block and reply only when an update is actually available. As soon as we get a response we make another request to get notified when new messages arrive.
 
 This is the recommended way to use the bot during development since setup is a lot simpler.
 
-### --server
+### Webhooks (PORT variable present)
 
 This program gets push notifications from Telegram via webhooks. A web server is started and updates are posted as JSON at the `/#BOT_TOKEN#/updates` endpoint.
 
