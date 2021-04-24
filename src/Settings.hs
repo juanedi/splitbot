@@ -1,9 +1,10 @@
 module Settings
   ( Settings(..)
+  , BotMode(..)
   , fromEnv
   ) where
 
-import System.Environment (getEnv)
+import System.Environment (getEnv, lookupEnv)
 
 data Settings = Settings
   { -- Telegram ID for user A. That's the username on your profile without the leading '@'
@@ -21,11 +22,15 @@ data Settings = Settings
     userBSplitwiseId :: Integer
   , -- Telegram API token
     telegramToken :: String
-  , -- Port number for the server if using webhooks. This will be ignored if using long polling.
-    port :: Int
+  , -- Tells whether the bot will use long polling or start a server to listen to webhooks
+    botMode :: BotMode
   , -- Were to store persisted data
     storePath :: FilePath
   }
+
+data BotMode
+  = LongPolling
+  | Server Int
 
 fromEnv :: IO (Settings)
 fromEnv =
@@ -37,8 +42,16 @@ fromEnv =
     <*> getEnv "USER_B_TG_ID"
     <*> readEnv "USER_B_SW_ID"
     <*> getEnv "TELEGRAM_TOKEN"
-    <*> readEnv "PORT"
+    <*> readBotMode "PORT"
     <*> getEnv "STORE_PATH"
 
 readEnv :: Read a => String -> IO a
 readEnv key = read <$> getEnv key
+
+readBotMode :: String -> IO BotMode
+readBotMode envKey = do
+  value <- lookupEnv envKey
+  return $
+    case value of
+      Nothing -> LongPolling
+      Just port -> Server (read port)
