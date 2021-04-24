@@ -30,18 +30,16 @@ data Runtime = Runtime
   , core :: Core.Model
   }
 
-startPolling :: IO ()
-startPolling = do
-  settings <- Settings.fromEnv
+startPolling :: Settings -> IO ()
+startPolling settings = do
   runtime  <- Runtime.init settings
   _        <- concurrently
     (loop runtime)
     (Telegram.LongPolling.run (onMessage runtime) (telegramToken runtime))
   return ()
 
-startServer :: IO ()
-startServer = do
-  settings <- Settings.fromEnv
+startServer :: Settings -> IO ()
+startServer settings = do
   runtime  <- Runtime.init settings
   _        <- concurrently
     (loop runtime)
