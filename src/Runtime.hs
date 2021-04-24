@@ -1,4 +1,4 @@
-module Runtime (startPolling, startServer) where
+module Runtime (start) where
 
 import           Control.Concurrent.Async (concurrently)
 import qualified Control.Exception
@@ -30,6 +30,16 @@ data Runtime = Runtime
   , core :: Core.Model
   }
 
+start :: Settings -> IO ()
+start settings =
+  case Settings.botMode settings of
+    Settings.LongPolling -> do
+      putStrLn "Starting bot in polling mode 🚀"
+      startPolling settings
+    Settings.Server port -> do
+      putStrLn "Starting bot with webserver 🚀"
+      startServer port settings
+
 startPolling :: Settings -> IO ()
 startPolling settings = do
   runtime  <- Runtime.init settings
@@ -38,14 +48,14 @@ startPolling settings = do
     (Telegram.LongPolling.run (onMessage runtime) (telegramToken runtime))
   return ()
 
-startServer :: Settings -> IO ()
-startServer settings = do
+startServer :: Int -> Settings -> IO ()
+startServer port settings = do
   runtime  <- Runtime.init settings
   _        <- concurrently
     (loop runtime)
     (Telegram.WebhookServer.run (Runtime.onMessage runtime)
                                 (Settings.telegramToken settings)
-                                (Settings.port settings)
+                                port
     )
   return ()
 

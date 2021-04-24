@@ -1,6 +1,3 @@
-watch:
-	watchexec --exts hs -r -- 'cabal build && cabal run splitbot -- --polling'
-
 push-release:
 	@[ "${TAG}" ] || (echo "TAG variable not set"; exit 1)
 	git tag -a ${TAG} -m "release version ${TAG}"
