@@ -23,7 +23,7 @@ import Text.Read (readMaybe)
 
 
 data Runtime = Runtime
-  { telegramToken ::      Telegram.Token
+  { telegramToken :: Telegram.Token
   , splitwiseGroup :: Splitwise.Group
   , storePath :: FilePath
   , http :: Http.Manager
