@@ -59,7 +59,10 @@ workflows:
   version: 2
   build-release:
     jobs:
-      - build
+      - build:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+/
       - publish_tag:
           requires: [ build ]
           filters:
