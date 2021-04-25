@@ -1,37 +1,46 @@
-module Conversation.Parameters.Split
-  ( Split(..)
-  , Conversation.Parameters.Split.init
-  , ask
-  , parse
-  , peerPart
-  ) where
+module Conversation.Parameters.Split (
+  Split (..),
+  Conversation.Parameters.Split.init,
+  ask,
+  parse,
+  peerPart,
+) where
 
-import           Control.Applicative ((<|>))
-import           Conversation.Parameters.Who
-import           Data.Char (toLower)
-import           Telegram.Reply (Reply)
+import Control.Applicative ((<|>))
+import Conversation.Parameters.Who
+import Data.Char (toLower)
+import Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
-import           Text.Trifecta
+import Text.Trifecta
+
 
 newtype Split = Split
   { myPart :: Integer
-  } deriving (Show)
+  }
+  deriving (Show)
+
 
 init :: Integer -> Split
 init = Split
 
+
 ask :: Split -> Reply
-ask preset = Reply.withOptions
-  "How will you split it?"
-  ["Evenly", "All on me", "All on them", show (myPart preset) ++ "% on me"]
+ask preset =
+  Reply.withOptions
+    "How will you split it?"
+    ["Evenly", "All on me", "All on them", show (myPart preset) ++ "% on me"]
+
 
 parse :: String -> Maybe Split
-parse str = case parseReply str of
-  Success split -> Just split
-  Failure _     -> Nothing
+parse str =
+  case parseReply str of
+    Success split -> Just split
+    Failure _ -> Nothing
+
 
 parseReply :: String -> Result Split
 parseReply str = parseString (parser <* eof) mempty (map toLower str)
+
 
 parser :: Parser Split
 parser =
@@ -40,20 +49,23 @@ parser =
     <|> (try (constParser "all on them" (Split 0)) <?> "tried 'all on them'")
     <|> myShareParser
 
+
 myShareParser :: Parser Split
 myShareParser = do
   share <- decimal
-  _     <- string "% on "
-  who   <- whoParser
+  _ <- string "% on "
+  who <- whoParser
   if 0 <= share && share <= 100
     then case who of
-      Me   -> return (Split share)
+      Me -> return (Split share)
       They -> return (Split (100 - share))
     else fail "Share must be between 0% and 100%"
+
 
 whoParser :: Parser Who
 whoParser =
   (try (constParser "me" Me) <?> "tried 'I'") <|> constParser "them" They
+
 
 constParser :: String -> a -> Parser a
 constParser accepts value = string accepts >> return value

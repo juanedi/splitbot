@@ -1,10 +1,11 @@
-module Settings
-  ( Settings(..)
-  , BotMode(..)
-  , fromEnv
-  ) where
+module Settings (
+  Settings (..),
+  BotMode (..),
+  fromEnv,
+) where
 
 import System.Environment (getEnv, lookupEnv)
+
 
 data Settings = Settings
   { -- Telegram ID for user A. That's the username on your profile without the leading '@'
@@ -28,9 +29,11 @@ data Settings = Settings
     storePath :: FilePath
   }
 
+
 data BotMode
   = LongPolling
   | Server Int
+
 
 fromEnv :: IO (Settings)
 fromEnv =
@@ -45,8 +48,10 @@ fromEnv =
     <*> readBotMode "PORT"
     <*> getEnv "STORE_PATH"
 
+
 readEnv :: Read a => String -> IO a
 readEnv key = read <$> getEnv key
+
 
 readBotMode :: String -> IO BotMode
 readBotMode envKey = do

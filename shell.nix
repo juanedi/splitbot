@@ -11,7 +11,7 @@ pkgs.mkShell {
 
     ghcid
     cabal-install
-    haskellPackages.ormolu
+    haskellPackages.fourmolu
     haskellPackages.hasktags
   ];
 

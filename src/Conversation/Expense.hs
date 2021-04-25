@@ -5,10 +5,11 @@ import Conversation.Parameters.Description (Description)
 import Conversation.Parameters.Split (Split)
 import Conversation.Parameters.Who (Who)
 
+
 data Expense = Expense
   { description :: Description
   , payer :: Who
   , amount :: Amount
   , split :: Split
   }
-  deriving Show
+  deriving (Show)
