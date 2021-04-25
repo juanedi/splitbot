@@ -1,29 +1,29 @@
 module Telegram.Reply (
-    Reply,
-    apologizing,
-    keyboardMarkup,
-    plain,
-    text,
-    withOptions,
+  Reply,
+  apologizing,
+  keyboardMarkup,
+  plain,
+  text,
+  withOptions,
 ) where
 
 import qualified Telegram.Api.SendMessage as SendMessage
 
 
 data Reply
-    = Reply
-        String
-        ReplyKeyboard
+  = Reply
+      String
+      ReplyKeyboard
 
 
 data ReplyKeyboard
-    = Normal
-    | Options [String]
+  = Normal
+  | Options [String]
 
 
 apologizing :: Reply -> Reply
 apologizing (Reply msgText keyboard) =
-    Reply ("Sorry, I couldn't understand that. " ++ msgText) keyboard
+  Reply ("Sorry, I couldn't understand that. " ++ msgText) keyboard
 
 
 plain :: String -> Reply
@@ -40,10 +40,10 @@ text (Reply msgText _keyboard) = msgText
 
 keyboardMarkup :: Reply -> SendMessage.ReplyMarkup
 keyboardMarkup (Reply _msgText keyboard) =
-    case keyboard of
-        Normal -> SendMessage.ReplyKeyboardRemove
-        Options opts ->
-            SendMessage.InlineKeyboard
-                (map (\o -> [o]) opts) -- display options as a column
-                False
-                True
+  case keyboard of
+    Normal -> SendMessage.ReplyKeyboardRemove
+    Options opts ->
+      SendMessage.InlineKeyboard
+        (map (\o -> [o]) opts) -- display options as a column
+        False
+        True

@@ -6,5 +6,5 @@ import qualified Settings
 
 main :: IO ()
 main = do
-    settings <- Settings.fromEnv
-    Runtime.start settings
+  settings <- Settings.fromEnv
+  Runtime.start settings

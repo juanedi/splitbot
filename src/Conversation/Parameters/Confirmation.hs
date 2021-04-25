@@ -1,6 +1,6 @@
 module Conversation.Parameters.Confirmation (
-    ask,
-    Conversation.Parameters.Confirmation.read,
+  ask,
+  Conversation.Parameters.Confirmation.read,
 ) where
 
 import Conversation.Expense (Expense)
@@ -15,33 +15,33 @@ import qualified Telegram.Reply as Reply
 
 ask :: Expense -> Reply
 ask expense =
-    let descriptionLine =
-            concat ["*", (Description.text . Expense.description) expense, "*\n"]
+  let descriptionLine =
+        concat ["*", (Description.text . Expense.description) expense, "*\n"]
 
-        payerLine =
-            concat
-                [ "Payed by "
-                , case (Expense.payer expense) of
-                    Me -> "me"
-                    They -> "them"
-                , "\n"
-                ]
+      payerLine =
+        concat
+          [ "Payed by "
+          , case (Expense.payer expense) of
+              Me -> "me"
+              They -> "them"
+          , "\n"
+          ]
 
-        amountLine =
-            concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+      amountLine =
+        concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
 
-        splitLine =
-            concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
-     in Reply.withOptions
-            ( concat
-                [ "Is this correct❓\n\n"
-                , descriptionLine
-                , amountLine
-                , payerLine
-                , splitLine
-                ]
-            )
-            ["Yes", "No"]
+      splitLine =
+        concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
+   in Reply.withOptions
+        ( concat
+            [ "Is this correct❓\n\n"
+            , descriptionLine
+            , amountLine
+            , payerLine
+            , splitLine
+            ]
+        )
+        ["Yes", "No"]
 
 
 read :: String -> Bool

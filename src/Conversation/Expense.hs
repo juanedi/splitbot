@@ -7,9 +7,9 @@ import Conversation.Parameters.Who (Who)
 
 
 data Expense = Expense
-    { description :: Description
-    , payer :: Who
-    , amount :: Amount
-    , split :: Split
-    }
-    deriving (Show)
+  { description :: Description
+  , payer :: Who
+  , amount :: Amount
+  , split :: Split
+  }
+  deriving (Show)

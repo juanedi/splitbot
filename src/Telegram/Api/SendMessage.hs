@@ -4,41 +4,41 @@ import Data.Aeson (ToJSON, object, toJSON, (.=))
 
 
 data Message = Message
-    { chatId :: Integer
-    , text :: String
-    , replyMarkup :: ReplyMarkup
-    }
+  { chatId :: Integer
+  , text :: String
+  , replyMarkup :: ReplyMarkup
+  }
 
 
 instance ToJSON Message where
-    toJSON m =
-        object $
-            [ "chat_id" .= (chatId m)
-            , "text" .= (text m)
-            , "parse_mode" .= ("markdown" :: String)
-            , "reply_markup" .= (replyMarkup m)
-            ]
+  toJSON m =
+    object $
+      [ "chat_id" .= (chatId m)
+      , "text" .= (text m)
+      , "parse_mode" .= ("markdown" :: String)
+      , "reply_markup" .= (replyMarkup m)
+      ]
 
 
 data ReplyMarkup
-    = InlineKeyboard
-        { keyboard :: [[KeyboardButton]]
-        , resizeKeyboard :: Bool
-        , oneTimeKeyboard :: Bool
-        }
-    | ReplyKeyboardRemove
+  = InlineKeyboard
+      { keyboard :: [[KeyboardButton]]
+      , resizeKeyboard :: Bool
+      , oneTimeKeyboard :: Bool
+      }
+  | ReplyKeyboardRemove
 
 
 instance ToJSON ReplyMarkup where
-    toJSON m =
-        case m of
-            InlineKeyboard keyboard resizeKeyboard oneTimeKeyboard ->
-                object
-                    [ "keyboard" .= keyboard
-                    , "resize_keyboard" .= resizeKeyboard
-                    , "one_time_keyboard" .= oneTimeKeyboard
-                    ]
-            ReplyKeyboardRemove -> object ["remove_keyboard" .= True]
+  toJSON m =
+    case m of
+      InlineKeyboard keyboard resizeKeyboard oneTimeKeyboard ->
+        object
+          [ "keyboard" .= keyboard
+          , "resize_keyboard" .= resizeKeyboard
+          , "one_time_keyboard" .= oneTimeKeyboard
+          ]
+      ReplyKeyboardRemove -> object ["remove_keyboard" .= True]
 
 
 type KeyboardButton = String

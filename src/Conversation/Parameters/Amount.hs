@@ -1,7 +1,7 @@
 module Conversation.Parameters.Amount (
-    Amount (..),
-    ask,
-    parse,
+  Amount (..),
+  ask,
+  parse,
 ) where
 
 import Telegram.Reply (Reply)
@@ -10,9 +10,9 @@ import Text.Read (readMaybe)
 
 
 newtype Amount = Amount
-    { value :: Integer
-    }
-    deriving (Show)
+  { value :: Integer
+  }
+  deriving (Show)
 
 
 ask :: Reply

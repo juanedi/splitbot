@@ -1,6 +1,6 @@
 module Conversation.Parameters.Payer (
-    ask,
-    parse,
+  ask,
+  parse,
 ) where
 
 import Conversation.Parameters.Who
@@ -15,7 +15,7 @@ ask = Reply.withOptions "Who paid?" ["Me", "They"]
 
 parse :: String -> Maybe Who
 parse str =
-    case (map toLower) str of
-        "me" -> Just Me
-        "they" -> Just They
-        _ -> Nothing
+  case (map toLower) str of
+    "me" -> Just Me
+    "they" -> Just They
+    _ -> Nothing

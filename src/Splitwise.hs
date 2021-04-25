@@ -1,10 +1,10 @@
 module Splitwise (
-    group,
-    createExpense,
-    getBalance,
-    Group,
-    Role (..),
-    ExpenseOutcome (..),
+  group,
+  createExpense,
+  getBalance,
+  Group,
+  Role (..),
+  ExpenseOutcome (..),
 ) where
 
 import qualified Conversation.Expense
@@ -23,81 +23,81 @@ import qualified Splitwise.Api.GetBalanceResponse as GetBalanceResponse
 
 
 newtype UserId = UserId
-    { getId :: Integer
-    }
-    deriving (Eq)
+  { getId :: Integer
+  }
+  deriving (Eq)
 
 
 data Group = Group
-    { token :: Api.Token
-    , owner :: UserId
-    , peer :: UserId
-    }
+  { token :: Api.Token
+  , owner :: UserId
+  , peer :: UserId
+  }
 
 
 data Role = Owner | Peer
 
 
 data ExpenseOutcome = Created | Failed
-    deriving (Show)
+  deriving (Show)
 
 
 group :: String -> Integer -> Integer -> Group
 group token owner peer =
-    Group
-        { token = Api.Token (pack token)
-        , owner = UserId owner
-        , peer = UserId peer
-        }
+  Group
+    { token = Api.Token (pack token)
+    , owner = UserId owner
+    , peer = UserId peer
+    }
 
 
 createExpense ::
-    Http.Manager ->
-    Role ->
-    Group ->
-    Conversation.Expense.Expense ->
-    IO ExpenseOutcome
+  Http.Manager ->
+  Role ->
+  Group ->
+  Conversation.Expense.Expense ->
+  IO ExpenseOutcome
 createExpense http role group expense = do
-    let description =
-            (Description.text . Conversation.Expense.description) expense
-        cost = (Amount.value . Conversation.Expense.amount) expense
-        payer = Conversation.Expense.payer expense
-        (ownerPaidShare, peerPaidShare) = paidShares payer role cost
-        split = Conversation.Expense.split expense
-        (myOwedShare, buddysOwedShare) = owedShares split role cost
-        apiToken = token group
-    success <-
-        Api.createExpense http apiToken $
-            Api.Expense
-                { Api.payment = False
-                , Api.cost = cost
-                , Api.currency = Currency.ARS
-                , Api.description = description
-                , Api.user1Share =
-                    Api.UserShare
-                        { Api.userId = getId (owner group)
-                        , Api.paidShare = ownerPaidShare
-                        , Api.owedShare = myOwedShare
-                        }
-                , Api.user2Share =
-                    Api.UserShare
-                        { Api.userId = getId (peer group)
-                        , Api.paidShare = peerPaidShare
-                        , Api.owedShare = buddysOwedShare
-                        }
-                }
-    return (if success then Created else Failed)
+  let description =
+        (Description.text . Conversation.Expense.description) expense
+      cost = (Amount.value . Conversation.Expense.amount) expense
+      payer = Conversation.Expense.payer expense
+      (ownerPaidShare, peerPaidShare) = paidShares payer role cost
+      split = Conversation.Expense.split expense
+      (myOwedShare, buddysOwedShare) = owedShares split role cost
+      apiToken = token group
+  success <-
+    Api.createExpense http apiToken $
+      Api.Expense
+        { Api.payment = False
+        , Api.cost = cost
+        , Api.currency = Currency.ARS
+        , Api.description = description
+        , Api.user1Share =
+            Api.UserShare
+              { Api.userId = getId (owner group)
+              , Api.paidShare = ownerPaidShare
+              , Api.owedShare = myOwedShare
+              }
+        , Api.user2Share =
+            Api.UserShare
+              { Api.userId = getId (peer group)
+              , Api.paidShare = peerPaidShare
+              , Api.owedShare = buddysOwedShare
+              }
+        }
+  return (if success then Created else Failed)
 
 
 getBalance :: Http.Manager -> Group -> Role -> IO (Maybe Balance)
 getBalance http group role = do
-    -- TODO use role to invert balance if necessary
-    response <- Api.getBalance http (token group) (getId (peer group))
-    let balance =
-            (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
-    return $ case role of
-        Owner -> balance
-        Peer -> Balance.invert <$> balance
+  -- TODO use role to invert balance if necessary
+  response <- Api.getBalance http (token group) (getId (peer group))
+  let balance =
+        (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
+  return $ case role of
+    Owner -> balance
+    Peer -> Balance.invert <$> balance
 
 
 -- (owner_share, peer_share)
@@ -111,8 +111,8 @@ paidShares They Peer cost = (cost, 0)
 -- (owner_share, peer_share)
 owedShares :: Split -> Role -> Integer -> (Integer, Integer)
 owedShares split role cost =
-    let myShare =
-            round $ (fromInteger (cost * (Split.myPart split)) :: Double) / 100
-     in case role of
-            Owner -> (myShare, cost - myShare)
-            Peer -> (cost - myShare, myShare)
+  let myShare =
+        round $ (fromInteger (cost * (Split.myPart split)) :: Double) / 100
+   in case role of
+        Owner -> (myShare, cost - myShare)
+        Peer -> (cost - myShare, myShare)
