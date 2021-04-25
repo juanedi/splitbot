@@ -39,10 +39,11 @@ text (Reply msgText _keyboard) = msgText
 
 
 keyboardMarkup :: Reply -> SendMessage.ReplyMarkup
-keyboardMarkup (Reply _msgText keyboard) = case keyboard of
-    Normal -> SendMessage.ReplyKeyboardRemove
-    Options opts ->
-        SendMessage.InlineKeyboard
-            (map (\o -> [o]) opts) -- display options as a column
-            False
-            True
+keyboardMarkup (Reply _msgText keyboard) =
+    case keyboard of
+        Normal -> SendMessage.ReplyKeyboardRemove
+        Options opts ->
+            SendMessage.InlineKeyboard
+                (map (\o -> [o]) opts) -- display options as a column
+                False
+                True

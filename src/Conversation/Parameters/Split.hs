@@ -32,9 +32,10 @@ ask preset =
 
 
 parse :: String -> Maybe Split
-parse str = case parseReply str of
-    Success split -> Just split
-    Failure _ -> Nothing
+parse str =
+    case parseReply str of
+        Success split -> Just split
+        Failure _ -> Nothing
 
 
 parseReply :: String -> Result Split

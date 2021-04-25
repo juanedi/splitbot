@@ -103,53 +103,55 @@ loop runtime = do
 
 
 runEffects :: Runtime -> [Core.Effect] -> IO ()
-runEffects runtime effects = case effects of
-    [] -> return ()
-    first : rest ->
-        -- TODO: catch errors
-        (runEffect runtime first) >> runEffects runtime rest
+runEffects runtime effects =
+    case effects of
+        [] -> return ()
+        first : rest ->
+            -- TODO: catch errors
+            (runEffect runtime first) >> runEffects runtime rest
 
 
 runEffect :: Runtime -> Core.Effect -> IO ()
-runEffect runtime effect = case effect of
-    Core.LogError msg -> putStrLn msg
-    Core.LoadChatId userId -> do
-        maybeChatId <- readChatId (storePath runtime) userId
-        case maybeChatId of
-            Nothing -> return ()
-            Just chatId -> do
-                Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
-    Core.PersistChatId userId chatId ->
-        persistChatId (storePath runtime) userId chatId
-    Core.ConversationEffect contactInfo eff -> case eff of
-        Conversation.Answer reply ->
-            sendMessage runtime (Core.ownChatId contactInfo) reply
-        Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
-            Nothing ->
-                -- this means that we don't know the peer's chat id because they
-                -- haven't contacted us yet.
-                return ()
-            Just peerChatId -> sendMessage runtime peerChatId reply
-        Conversation.Store onOutcome expense -> do
-            outcome <-
-                Splitwise.createExpense
-                    (http runtime)
-                    (Core.ownRole contactInfo)
-                    (splitwiseGroup runtime)
-                    expense
-            Queue.enqueue
-                (queue runtime)
-                ( Core.ConversationEvent (Core.ownUserId contactInfo) (onOutcome outcome)
-                )
-        Conversation.GetBalance onBalance -> do
-            result <-
-                Splitwise.getBalance
-                    (http runtime)
-                    (splitwiseGroup runtime)
-                    (Core.ownRole contactInfo)
-            Queue.enqueue
-                (queue runtime)
-                (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
+runEffect runtime effect =
+    case effect of
+        Core.LogError msg -> putStrLn msg
+        Core.LoadChatId userId -> do
+            maybeChatId <- readChatId (storePath runtime) userId
+            case maybeChatId of
+                Nothing -> return ()
+                Just chatId -> do
+                    Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
+        Core.PersistChatId userId chatId ->
+            persistChatId (storePath runtime) userId chatId
+        Core.ConversationEffect contactInfo eff -> case eff of
+            Conversation.Answer reply ->
+                sendMessage runtime (Core.ownChatId contactInfo) reply
+            Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
+                Nothing ->
+                    -- this means that we don't know the peer's chat id because they
+                    -- haven't contacted us yet.
+                    return ()
+                Just peerChatId -> sendMessage runtime peerChatId reply
+            Conversation.Store onOutcome expense -> do
+                outcome <-
+                    Splitwise.createExpense
+                        (http runtime)
+                        (Core.ownRole contactInfo)
+                        (splitwiseGroup runtime)
+                        expense
+                Queue.enqueue
+                    (queue runtime)
+                    ( Core.ConversationEvent (Core.ownUserId contactInfo) (onOutcome outcome)
+                    )
+            Conversation.GetBalance onBalance -> do
+                result <-
+                    Splitwise.getBalance
+                        (http runtime)
+                        (splitwiseGroup runtime)
+                        (Core.ownRole contactInfo)
+                Queue.enqueue
+                    (queue runtime)
+                    (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
 
 
 sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
@@ -190,8 +192,10 @@ tryReadFile path = Control.Exception.try (readFile path)
 
 chatIdPath :: FilePath -> Core.UserId -> (FilePath, FilePath)
 chatIdPath storePath userId =
-    let userIdPart = case userId of
-            Core.UserA -> "a"
-            Core.UserB -> "b"
-        directoryPath = FilePath.joinPath [storePath, "users", userIdPart]
+    let userIdPart =
+            case userId of
+                Core.UserA -> "a"
+                Core.UserB -> "b"
+        directoryPath =
+            FilePath.joinPath [storePath, "users", userIdPart]
      in (directoryPath, FilePath.joinPath [directoryPath, "chat_id"])

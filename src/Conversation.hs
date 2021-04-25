@@ -83,89 +83,91 @@ start message preset =
 
 
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
-update event conversation = case (conversation, event) of
-    (SavingExpense expense, ExpenseCreationDone outcome) -> case outcome of
-        Splitwise.Created ->
-            (Just (FetchingBalance expense), [GetBalance OnBalance])
-        Splitwise.Failed ->
-            -- TODO: handle this error: maybe ask if we want to retry?
-            (Just conversation, [])
-    (FetchingBalance expense, OnBalance maybeBalance) ->
-        ( Nothing
-        ,
-            [ Answer (ownNotification maybeBalance)
-            , NotifyPeer (peerNotification expense maybeBalance)
-            ]
-        )
-    (_, _) -> (Just conversation, [])
+update event conversation =
+    case (conversation, event) of
+        (SavingExpense expense, ExpenseCreationDone outcome) -> case outcome of
+            Splitwise.Created ->
+                (Just (FetchingBalance expense), [GetBalance OnBalance])
+            Splitwise.Failed ->
+                -- TODO: handle this error: maybe ask if we want to retry?
+                (Just conversation, [])
+        (FetchingBalance expense, OnBalance maybeBalance) ->
+            ( Nothing
+            ,
+                [ Answer (ownNotification maybeBalance)
+                , NotifyPeer (peerNotification expense maybeBalance)
+                ]
+            )
+        (_, _) -> (Just conversation, [])
 
 
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
-messageReceived userMessage conversation = case conversation of
-    AwaitingDescription preset ->
-        ( Just $
-            AwaitingAmount
-                { preset = preset
-                , description = Description.read userMessage
-                }
-        , [Answer Amount.ask]
-        )
-    AwaitingInitialConfirmation preset description ->
-        if Description.readConfirmation userMessage
-            then
-                ( Just $ AwaitingAmount {preset = preset, description = description}
-                , [Answer Amount.ask]
-                )
-            else (Nothing, [Answer cancelled])
-    AwaitingAmount preset description -> case Amount.parse userMessage of
-        Just amount ->
-            ( Just
-                ( AwaitingPayer
-                    { preset = preset
-                    , description = description
-                    , amount = amount
-                    }
-                )
-            , [Answer Payer.ask]
-            )
-        Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
-    AwaitingPayer preset description amount -> case Payer.parse userMessage of
-        Just payer ->
+messageReceived userMessage conversation =
+    case conversation of
+        AwaitingDescription preset ->
             ( Just $
-                AwaitingSplit
+                AwaitingAmount
                     { preset = preset
-                    , description = description
-                    , amount = amount
-                    , payer = payer
+                    , description = Description.read userMessage
                     }
-            , [Answer (Split.ask preset)]
+            , [Answer Amount.ask]
             )
-        Nothing -> (Just conversation, [Answer (Reply.apologizing Payer.ask)])
-    AwaitingSplit preset description payer amount ->
-        case Split.parse userMessage of
-            Just split ->
-                let expense =
-                        ( Expense.Expense
-                            { Expense.description = description
-                            , Expense.payer = payer
-                            , Expense.amount = amount
-                            , Expense.split = split
-                            }
-                        )
-                 in ( Just (AwaitingConfirmation expense)
-                    , [Answer (Confirmation.ask expense)]
+        AwaitingInitialConfirmation preset description ->
+            if Description.readConfirmation userMessage
+                then
+                    ( Just $ AwaitingAmount {preset = preset, description = description}
+                    , [Answer Amount.ask]
                     )
-            Nothing ->
-                (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
-    AwaitingConfirmation expense ->
-        if Confirmation.read userMessage
-            then
-                ( Just (SavingExpense expense)
-                , [Answer holdOn, Store ExpenseCreationDone expense]
+                else (Nothing, [Answer cancelled])
+        AwaitingAmount preset description -> case Amount.parse userMessage of
+            Just amount ->
+                ( Just
+                    ( AwaitingPayer
+                        { preset = preset
+                        , description = description
+                        , amount = amount
+                        }
+                    )
+                , [Answer Payer.ask]
                 )
-            else (Nothing, [Answer cancelled])
-    SavingExpense _ -> (Just conversation, [Answer holdOn])
-    FetchingBalance _ -> (Just conversation, [Answer holdOn])
+            Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
+        AwaitingPayer preset description amount -> case Payer.parse userMessage of
+            Just payer ->
+                ( Just $
+                    AwaitingSplit
+                        { preset = preset
+                        , description = description
+                        , amount = amount
+                        , payer = payer
+                        }
+                , [Answer (Split.ask preset)]
+                )
+            Nothing -> (Just conversation, [Answer (Reply.apologizing Payer.ask)])
+        AwaitingSplit preset description payer amount ->
+            case Split.parse userMessage of
+                Just split ->
+                    let expense =
+                            ( Expense.Expense
+                                { Expense.description = description
+                                , Expense.payer = payer
+                                , Expense.amount = amount
+                                , Expense.split = split
+                                }
+                            )
+                     in ( Just (AwaitingConfirmation expense)
+                        , [Answer (Confirmation.ask expense)]
+                        )
+                Nothing ->
+                    (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
+        AwaitingConfirmation expense ->
+            if Confirmation.read userMessage
+                then
+                    ( Just (SavingExpense expense)
+                    , [Answer holdOn, Store ExpenseCreationDone expense]
+                    )
+                else (Nothing, [Answer cancelled])
+        SavingExpense _ -> (Just conversation, [Answer holdOn])
+        FetchingBalance _ -> (Just conversation, [Answer holdOn])
 
 
 holdOn :: Reply
@@ -207,10 +209,11 @@ expenseSummary expense =
 
 
 balanceSummary :: Balance -> String
-balanceSummary balance = case balance of
-    [] -> "You're now even!"
-    b : [] -> currencySummary b
-    _ -> unlines $ currencySummary <$> balance
+balanceSummary balance =
+    case balance of
+        [] -> "You're now even!"
+        b : [] -> currencySummary b
+        _ -> unlines $ currencySummary <$> balance
     where
         currencySummary cb =
             mconcat

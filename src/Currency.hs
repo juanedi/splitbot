@@ -18,9 +18,10 @@ instance Show Currency where
 
 
 code :: Currency -> String
-code currency = case currency of
-    ARS -> "ARS"
-    USD -> "USD"
+code currency =
+    case currency of
+        ARS -> "ARS"
+        USD -> "USD"
 
 
 instance ToJSON Currency where

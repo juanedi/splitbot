@@ -104,25 +104,25 @@ initialize settings =
 
 
 update :: Event -> Model -> (Model, [Effect])
-update event model = case event of
-    ChatIdLoaded userId chatId ->
-        --
-        (updateChatId userId chatId model, [])
-    MessageReceived msg ->
-        --
-        updateFromMessage msg model
-    ConversationEvent userId conversationEvent ->
-        let (updatedUser, effects) =
-                relayEvent
-                    userId
-                    (getUser userId model)
-                    (getPeerChatId userId model)
-                    conversationEvent
-         in (updateUser userId updatedUser model, effects)
+update event model =
+    case event of
+        ChatIdLoaded userId chatId ->
+            --
+            (updateChatId userId chatId model, [])
+        MessageReceived msg ->
+            --
+            updateFromMessage msg model
+        ConversationEvent userId conversationEvent ->
+            let (updatedUser, effects) =
+                    relayEvent
+                        userId
+                        (getUser userId model)
+                        (getPeerChatId userId model)
+                        conversationEvent
+             in (updateUser userId updatedUser model, effects)
 
 
-relayEvent ::
-    UserId -> User -> Maybe ChatId -> Conversation.Event -> (User, [Effect])
+relayEvent :: UserId -> User -> Maybe ChatId -> Conversation.Event -> (User, [Effect])
 relayEvent userId currentUser peerChatId event =
     case conversationState currentUser of
         Uninitialized -> (currentUser, [])
@@ -140,9 +140,10 @@ relayEvent userId currentUser peerChatId event =
                         }
                     )
              in ( currentUser
-                    { conversationState = case updatedConversation of
-                        Nothing -> Inactive chatId
-                        Just conv -> Active chatId conv
+                    { conversationState =
+                        case updatedConversation of
+                            Nothing -> Inactive chatId
+                            Just conv -> Active chatId conv
                     }
                 , fmap (ConversationEffect contactInfo) conversationEffects
                 )
@@ -151,9 +152,10 @@ relayEvent userId currentUser peerChatId event =
 updateChatId :: UserId -> ChatId -> Model -> Model
 updateChatId userId chatId model =
     let user = getUser userId model
-        updatedState = case conversationState user of
-            Uninitialized -> Inactive chatId
-            _ -> conversationState user
+        updatedState =
+            case conversationState user of
+                Uninitialized -> Inactive chatId
+                _ -> conversationState user
      in updateUser userId (user {conversationState = updatedState}) model
 
 
@@ -195,26 +197,29 @@ updateFromMessage msg model =
 answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
 answerMessage msg contactInfo currentUser =
     let txt = Message.text msg
-        (maybeConversation, effects) = case conversationState currentUser of
-            Uninitialized -> (Conversation.start txt (preset currentUser))
-            Inactive _ -> (Conversation.start txt (preset currentUser))
-            Active _ conversation ->
-                (Conversation.messageReceived txt conversation)
+        (maybeConversation, effects) =
+            case conversationState currentUser of
+                Uninitialized -> (Conversation.start txt (preset currentUser))
+                Inactive _ -> (Conversation.start txt (preset currentUser))
+                Active _ conversation ->
+                    (Conversation.messageReceived txt conversation)
         userChatId = (Message.chatId msg)
      in ( currentUser
-            { conversationState = case maybeConversation of
-                Nothing -> Inactive userChatId
-                Just c -> Active userChatId c
+            { conversationState =
+                case maybeConversation of
+                    Nothing -> Inactive userChatId
+                    Just c -> Active userChatId c
             }
         , fmap (ConversationEffect contactInfo) effects
         )
 
 
 shouldStoreChatId :: ChatId -> User -> Bool
-shouldStoreChatId chatId user = case conversationState user of
-    Uninitialized -> True
-    Inactive chatId_ -> chatId /= chatId_
-    Active chatId_ _ -> chatId /= chatId_
+shouldStoreChatId chatId user =
+    case conversationState user of
+        Uninitialized -> True
+        Inactive chatId_ -> chatId /= chatId_
+        Active chatId_ _ -> chatId /= chatId_
 
 
 matchUserId :: Model -> Username -> Maybe UserId
@@ -225,25 +230,29 @@ matchUserId model username
 
 
 getUser :: UserId -> Model -> User
-getUser userId = case userId of
-    UserA -> userA
-    UserB -> userB
+getUser userId =
+    case userId of
+        UserA -> userA
+        UserB -> userB
 
 
 getPeer :: UserId -> Model -> User
-getPeer userId = case userId of
-    UserA -> userB
-    UserB -> userA
+getPeer userId =
+    case userId of
+        UserA -> userB
+        UserB -> userA
 
 
 updateUser :: UserId -> User -> Model -> Model
-updateUser userId user model = case userId of
-    UserA -> model {userA = user}
-    UserB -> model {userB = user}
+updateUser userId user model =
+    case userId of
+        UserA -> model {userA = user}
+        UserB -> model {userB = user}
 
 
 getPeerChatId :: UserId -> Model -> Maybe ChatId
-getPeerChatId userId model = case conversationState (getPeer userId model) of
-    Uninitialized -> Nothing
-    Inactive chatId -> Just chatId
-    Active chatId _ -> Just chatId
+getPeerChatId userId model =
+    case conversationState (getPeer userId model) of
+        Uninitialized -> Nothing
+        Inactive chatId -> Just chatId
+        Active chatId _ -> Just chatId

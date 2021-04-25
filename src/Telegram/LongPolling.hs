@@ -44,23 +44,24 @@ loop callback state = do
 
 
 getMessage :: State -> IO (Message, State)
-getMessage state = case fetchState state of
-    Buffered nextUpdate rest ->
-        return
-            ( Message.fromUpdate nextUpdate
-            , case rest of
-                u : us -> state {fetchState = Buffered u us}
-                [] -> state {fetchState = NeedMore $ Just $ Update.updateId nextUpdate}
-            )
-    NeedMore lastUpdateId -> do
-        response <- requestUpdates (token state) (http state) lastUpdateId
-        case GetUpdates.result response of
-            u : us -> do
-                getMessage (state {fetchState = Buffered u us})
-            [] -> do
-                putStrLn "No updates found! Will retry in a bit"
-                threadDelay (1 * 1000 * 1000)
-                getMessage state
+getMessage state =
+    case fetchState state of
+        Buffered nextUpdate rest ->
+            return
+                ( Message.fromUpdate nextUpdate
+                , case rest of
+                    u : us -> state {fetchState = Buffered u us}
+                    [] -> state {fetchState = NeedMore $ Just $ Update.updateId nextUpdate}
+                )
+        NeedMore lastUpdateId -> do
+            response <- requestUpdates (token state) (http state) lastUpdateId
+            case GetUpdates.result response of
+                u : us -> do
+                    getMessage (state {fetchState = Buffered u us})
+                [] -> do
+                    putStrLn "No updates found! Will retry in a bit"
+                    threadDelay (1 * 1000 * 1000)
+                    getMessage state
 
 
 requestUpdates ::
