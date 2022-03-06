@@ -50,5 +50,32 @@ executable splitbot
                     , filepath
                     , directory
     hs-source-dirs:   app, src
+    other-modules: Conversation
+                ,  Conversation.Expense
+                ,  Conversation.Parameters.Amount
+                ,  Conversation.Parameters.Confirmation
+                ,  Conversation.Parameters.Description
+                ,  Conversation.Parameters.Payer
+                ,  Conversation.Parameters.Split
+                ,  Conversation.Parameters.Who
+                ,  Core
+                ,  Currency
+                ,  Queue
+                ,  Runtime
+                ,  Settings
+                ,  Splitwise
+                ,  Splitwise.Api
+                ,  Splitwise.Api.Balance
+                ,  Splitwise.Api.GetBalanceResponse
+                ,  Telegram
+                ,  Telegram.Api
+                ,  Telegram.Api.GetUpdates
+                ,  Telegram.Api.SendMessage
+                ,  Telegram.Api.Update
+                ,  Telegram.LongPolling
+                ,  Telegram.Message
+                ,  Telegram.Reply
+                ,  Telegram.Username
+                ,  Telegram.WebhookServer
     default-language: Haskell2010
     default-extensions:  OverloadedStrings

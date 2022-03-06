@@ -12,7 +12,7 @@ pkgs.mkShell {
     ghcid
     cabal-install
     haskellPackages.fourmolu
-    haskellPackages.hasktags
+    haskellPackages.haskell-language-server
   ];
 
   inputsFrom = [ splitbot.env ];
