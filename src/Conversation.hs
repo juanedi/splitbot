@@ -75,7 +75,7 @@ start message preset =
   let description = Description.read message
    in case message of
         "/start" ->
-          (Just (AwaitingDescription preset), [Answer (Description.ask)])
+          (Just (AwaitingDescription preset), [Answer Description.ask])
         _ ->
           ( Just (AwaitingInitialConfirmation preset description)
           , [Answer (Description.confirm description)]
@@ -85,12 +85,13 @@ start message preset =
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
 update event conversation =
   case (conversation, event) of
-    (SavingExpense expense, ExpenseCreationDone outcome) -> case outcome of
-      Splitwise.Created ->
-        (Just (FetchingBalance expense), [GetBalance OnBalance])
-      Splitwise.Failed ->
-        -- TODO: handle this error: maybe ask if we want to retry?
-        (Just conversation, [])
+    (SavingExpense expense, ExpenseCreationDone outcome) ->
+      case outcome of
+        Splitwise.Created ->
+          (Just (FetchingBalance expense), [GetBalance OnBalance])
+        Splitwise.Failed ->
+          -- TODO: handle this error: maybe ask if we want to retry?
+          (Just conversation, [])
     (FetchingBalance expense, OnBalance maybeBalance) ->
       ( Nothing
       ,
@@ -119,30 +120,33 @@ messageReceived userMessage conversation =
           , [Answer Amount.ask]
           )
         else (Nothing, [Answer cancelled])
-    AwaitingAmount preset description -> case Amount.parse userMessage of
-      Just amount ->
-        ( Just
-            ( AwaitingPayer
+    AwaitingAmount preset description ->
+      case Amount.parse userMessage of
+        Just amount ->
+          ( Just
+              ( AwaitingPayer
+                  { preset = preset
+                  , description = description
+                  , amount = amount
+                  }
+              )
+          , [Answer Payer.ask]
+          )
+        Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
+    AwaitingPayer preset description amount ->
+      case Payer.parse userMessage of
+        Just payer ->
+          ( Just $
+              AwaitingSplit
                 { preset = preset
                 , description = description
                 , amount = amount
+                , payer = payer
                 }
-            )
-        , [Answer Payer.ask]
-        )
-      Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
-    AwaitingPayer preset description amount -> case Payer.parse userMessage of
-      Just payer ->
-        ( Just $
-            AwaitingSplit
-              { preset = preset
-              , description = description
-              , amount = amount
-              , payer = payer
-              }
-        , [Answer (Split.ask preset)]
-        )
-      Nothing -> (Just conversation, [Answer (Reply.apologizing Payer.ask)])
+          , [Answer (Split.ask preset)]
+          )
+        Nothing ->
+          (Just conversation, [Answer (Reply.apologizing Payer.ask)])
     AwaitingSplit preset description payer amount ->
       case Split.parse userMessage of
         Just split ->
@@ -175,9 +179,12 @@ holdOn = Reply.plain "Hold on a sec... ⏳"
 
 
 ownNotification :: Maybe Balance -> Reply
-ownNotification balanceResult = Reply.plain $ case balanceResult of
-  Nothing -> confirmation
-  Just balance -> confirmation ++ balanceSummary balance
+ownNotification balanceResult =
+  Reply.plain
+    ( case balanceResult of
+        Nothing -> confirmation
+        Just balance -> confirmation ++ balanceSummary balance
+    )
   where
     confirmation = "Done! 🎉 💸\n"
 
@@ -190,7 +197,7 @@ peerNotification expense balanceResult =
       , "\n\n"
       , expenseSummary expense
       , "\n"
-      , fromMaybe "" $ fmap (balanceSummary . Balance.invert) $ balanceResult
+      , maybe "" (balanceSummary . Balance.invert) balanceResult
       ]
 
 
@@ -202,7 +209,7 @@ expenseSummary expense =
     , concat
         ["Your share: ", show $ (Split.peerPart . Expense.split) expense, "%\n"]
     , "Payed by "
-    , case (Expense.payer expense) of
+    , case Expense.payer expense of
         Me -> "them"
         They -> "you"
     ]
@@ -211,9 +218,12 @@ expenseSummary expense =
 balanceSummary :: Balance -> String
 balanceSummary balance =
   case balance of
-    [] -> "You're now even!"
-    b : [] -> currencySummary b
-    _ -> unlines $ currencySummary <$> balance
+    [] ->
+      "You're now even!"
+    [b] ->
+      currencySummary b
+    _ ->
+      unlines $ currencySummary <$> balance
   where
     currencySummary cb =
       mconcat

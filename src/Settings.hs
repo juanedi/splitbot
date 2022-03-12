@@ -35,7 +35,7 @@ data BotMode
   | Server Int
 
 
-fromEnv :: IO (Settings)
+fromEnv :: IO Settings
 fromEnv =
   Settings
     <$> getEnv "USER_A_TG_ID"

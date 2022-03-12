@@ -94,10 +94,12 @@ getBalance http group role = do
   -- TODO use role to invert balance if necessary
   response <- Api.getBalance http (token group) (getId (peer group))
   let balance =
-        (GetBalanceResponse.balance . GetBalanceResponse.friend) <$> response
-  return $ case role of
-    Owner -> balance
-    Peer -> Balance.invert <$> balance
+        GetBalanceResponse.balance . GetBalanceResponse.friend <$> response
+  return
+    ( case role of
+        Owner -> balance
+        Peer -> Balance.invert <$> balance
+    )
 
 
 -- (owner_share, peer_share)
@@ -112,7 +114,7 @@ paidShares They Peer cost = (cost, 0)
 owedShares :: Split -> Role -> Integer -> (Integer, Integer)
 owedShares split role cost =
   let myShare =
-        round $ (fromInteger (cost * (Split.myPart split)) :: Double) / 100
+        round $ (fromInteger (cost * Split.myPart split) :: Double) / 100
    in case role of
         Owner -> (myShare, cost - myShare)
         Peer -> (cost - myShare, myShare)

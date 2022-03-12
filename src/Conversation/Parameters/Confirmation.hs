@@ -21,7 +21,7 @@ ask expense =
       payerLine =
         concat
           [ "Payed by "
-          , case (Expense.payer expense) of
+          , case Expense.payer expense of
               Me -> "me"
               They -> "them"
           , "\n"

@@ -20,4 +20,4 @@ ask = Reply.plain "How much?"
 
 
 parse :: String -> Maybe Amount
-parse str = fmap Amount $ (readMaybe str)
+parse str = Amount <$> readMaybe str

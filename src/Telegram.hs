@@ -10,9 +10,8 @@ newtype Token = Token String
 
 
 getUpdates :: Http.Manager -> Token -> Maybe Integer -> IO GetUpdatesResult
-getUpdates http (Token token) offset = Api.getUpdates token http offset
+getUpdates http (Token token) = Api.getUpdates token http
 
 
 sendMessage :: Http.Manager -> Token -> ChatId -> Reply -> IO Bool
-sendMessage http (Token token) chatId reply =
-  Api.sendMessage token http chatId reply
+sendMessage http (Token token) = Api.sendMessage token http

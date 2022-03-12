@@ -81,20 +81,14 @@ initialize settings =
         Model
           { userA =
               User
-                { telegramId =
-                    ( Telegram.Username.fromString
-                        (Settings.userATelegramId settings)
-                    )
+                { telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
                 , splitwiseRole = Splitwise.Owner
                 , preset = Split.init presetA
                 , conversationState = Uninitialized
                 }
           , userB =
               User
-                { telegramId =
-                    ( Telegram.Username.fromString
-                        (Settings.userBTelegramId settings)
-                    )
+                { telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
                 , splitwiseRole = Splitwise.Peer
                 , preset = Split.init presetB
                 , conversationState = Uninitialized
@@ -165,11 +159,7 @@ updateFromMessage msg model =
    in case matchUserId model username of
         Nothing ->
           ( model
-          ,
-            [ LogError $
-                "Ignoring message from unknown user: "
-                  ++ (show username)
-            ]
+          , [LogError $ "Ignoring message from unknown user: " ++ show username]
           )
         Just userId ->
           let currentUser = getUser userId model
@@ -199,11 +189,10 @@ answerMessage msg contactInfo currentUser =
   let txt = Message.text msg
       (maybeConversation, effects) =
         case conversationState currentUser of
-          Uninitialized -> (Conversation.start txt (preset currentUser))
-          Inactive _ -> (Conversation.start txt (preset currentUser))
-          Active _ conversation ->
-            (Conversation.messageReceived txt conversation)
-      userChatId = (Message.chatId msg)
+          Uninitialized -> Conversation.start txt (preset currentUser)
+          Inactive _ -> Conversation.start txt (preset currentUser)
+          Active _ conversation -> Conversation.messageReceived txt conversation
+      userChatId = Message.chatId msg
    in ( currentUser
           { conversationState =
               case maybeConversation of
