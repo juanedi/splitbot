@@ -2,7 +2,7 @@
 
 let
   pkgs = import ../pkgs.nix { };
-  splitbot = import ../default.nix;
+  splitbot = import ../default.nix { pkgs = pkgs; };
 in pkgs.dockerTools.buildLayeredImage {
   name = imageName;
   inherit tag;
