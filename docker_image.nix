@@ -1,8 +1,8 @@
 { system ? builtins.currentSystem, imageName, tag }:
 
 let
-  pkgs = import ../pkgs.nix { };
-  splitbot = import ../default.nix { pkgs = pkgs; };
+  pkgs = import ./pkgs.nix { };
+  splitbot = import ./default.nix { pkgs = pkgs; };
 in pkgs.dockerTools.buildLayeredImage {
   name = imageName;
   inherit tag;
