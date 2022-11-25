@@ -1,17 +1,27 @@
 { pkgs, ... }:
 
+let
+  splitbot = pkgs.haskellPackages.callPackage  (import ./default.nix) {};
+in
 {
   # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env = {
+    inherit (splitbot.env);
+    GREET = "devenv";
+  };
 
   # https://devenv.sh/packages/
   packages = [
     pkgs.git
     pkgs.watchexec
+    pkgs.ghc
     pkgs.ghcid
     pkgs.cabal-install
     pkgs.haskellPackages.fourmolu
-    pkgs.haskellPackages.haskell-language-server
+    pkgs.zlib
+
+    # temporary to test things out manually for development!
+    pkgs.cabal2nix
   ];
 
   enterShell = ''
