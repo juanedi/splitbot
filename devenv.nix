@@ -7,31 +7,29 @@ in
   # https://devenv.sh/basics/
   env = {
     inherit (splitbot.env);
-    GREET = "devenv";
   };
 
   # https://devenv.sh/packages/
   packages = [
-    pkgs.git
-    pkgs.watchexec
+    pkgs.cabal-install
     pkgs.ghc
     pkgs.ghcid
-    pkgs.cabal-install
+    pkgs.git
     pkgs.haskellPackages.fourmolu
     pkgs.haskellPackages.haskell-language-server
+    pkgs.watchexec
     pkgs.zlib
   ];
 
-  enterShell = ''
-    hello
-    git --version
-  '';
+  # enterShell = ''
+  #   hello
+  # '';
 
   # https://devenv.sh/languages/
   languages.nix.enable = true;
 
   # https://devenv.sh/scripts/
-  scripts.hello.exec = "echo hello from $GREET";
+  # scripts.hello.exec = "echo '🌀 Entering devenv shell'";
 
   # https://devenv.sh/pre-commit-hooks/
   pre-commit.hooks.shellcheck.enable = true;
