@@ -1,2 +1,1 @@
-{ pkgs ? import ./pkgs.nix {} }:
-pkgs.haskellPackages.callCabal2nix "splitbot" ./. { }
+{ pkgs }: pkgs.haskellPackages.callCabal2nix "splitbot" ./. { }
