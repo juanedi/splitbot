@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  splitbot = pkgs.haskellPackages.callPackage  (import ./default.nix) {};
+  splitbot = pkgs.haskellPackages.callPackage  (import ./default.nix) { pkgs = pkgs; };
 in
 {
   # https://devenv.sh/basics/
@@ -19,9 +19,6 @@ in
     pkgs.cabal-install
     pkgs.haskellPackages.fourmolu
     pkgs.zlib
-
-    # temporary to test things out manually for development!
-    pkgs.cabal2nix
   ];
 
   enterShell = ''
@@ -35,11 +32,8 @@ in
   # https://devenv.sh/scripts/
   scripts.hello.exec = "echo hello from $GREET";
 
-
   # https://devenv.sh/pre-commit-hooks/
   pre-commit.hooks.shellcheck.enable = true;
-
-  pre-commit.hooks.cabal2nix.enable = true;
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";
