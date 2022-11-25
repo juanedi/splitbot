@@ -18,6 +18,7 @@ in
     pkgs.ghcid
     pkgs.cabal-install
     pkgs.haskellPackages.fourmolu
+    pkgs.haskellPackages.haskell-language-server
     pkgs.zlib
   ];
 
