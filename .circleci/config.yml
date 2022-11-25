@@ -20,7 +20,7 @@ jobs:
 
       - run:
           name: Formatter check
-          command: nix-shell --command "bash .circleci/check-fourmolu.sh"
+          command: nix-shell --command "bash .circleci/check-fourmolu.sh" ci-shell.nix
 
       - run:
           name: Build docker image
