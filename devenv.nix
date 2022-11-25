@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  splitbot = pkgs.haskellPackages.callPackage  (import ./default.nix) { pkgs = pkgs; };
+  splitbot = import ./default.nix { pkgs = pkgs; };
 in
 {
   # https://devenv.sh/basics/
