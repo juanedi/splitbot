@@ -23,9 +23,11 @@ jobs:
 
       - checkout
 
-      - run:
-          name: Devenv check
-          command: devenv ci
+      # TODO: seeing the following error when running this in Circle:
+      #   error: path '/root/project/.devenv/gc/ci' is not a valid garbage collector root; it's not in the directory '/nix/var/nix/gcroots'
+      # - run:
+      #     name: Devenv check
+      #     command: devenv ci
 
       - run:
           name: Formatter check
