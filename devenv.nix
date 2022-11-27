@@ -6,13 +6,13 @@ in
 {
   # https://devenv.sh/basics/
   env = {
+    # include build environment for the haskell app (includes GHC with packages!)
     inherit (splitbot.env);
   };
 
   # https://devenv.sh/packages/
   packages = [
     pkgs.cabal-install
-    pkgs.ghc
     pkgs.ghcid
     pkgs.git
     pkgs.haskellPackages.fourmolu
