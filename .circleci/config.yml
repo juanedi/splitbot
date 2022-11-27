@@ -17,8 +17,7 @@ jobs:
       - run:
           name: Install system dependencies
           command: |
-            nix-env -i openssh git
-            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            nix-env -iA nixpkgs.openssh nixpkgs.git nixpkgs.cachix nixpkgs.bash
             cachix use devenv
             nix-env -if https://github.com/cachix/devenv/tarball/v0.4
 
