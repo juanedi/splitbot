@@ -19,9 +19,13 @@ jobs:
 
       - run:
           name: Install system dependencies
-          no_output_timeout: 30m
           command: |
             nix-env -i openssh git
+
+      - run:
+          name: Install devenv
+          no_output_timeout: 30m
+          command: |
             nix-env -if https://github.com/cachix/devenv/tarball/v0.4
 
       - save_cache:
