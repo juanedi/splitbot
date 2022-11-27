@@ -1,8 +1,6 @@
 version: 2.1
 jobs:
   build:
-    resource_class: large
-
     environment:
       LC_ALL: "C.UTF-8"
 
