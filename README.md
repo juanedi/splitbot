@@ -8,7 +8,12 @@ This is a Telegram bot to interact with the Splitwise API. This isn't intended f
 
 This is a cabal project set up to be built using nix.
 
-To set up your development environment install nix on your system, `cd` into the project root and run `nix-shell`. That should start a shell with all of the dependencies you need to compile and run the project (ghc included!). If you have direnv installed, the `.envrc` file should take care of setting up the environment without the need to run `nix-shell`.
+The development environment is set up with [devenv](https://devenv.sh/) and [direnv](https://direnv.net/) to seamlessly load all of the tooling into the shell. If you have those tools installed you should be able to get up and running by `cd`ing into the project's root and running `direnv allow`.
+
+After that, you can use:
+  - `cabal build` to compile the project
+  - `ghcid -r` to compile and watch for changes
+  - `cabal run splitbot` to run the server (see "Configuration" section below first!)
 
 ### Splitwise token
 
@@ -19,10 +24,6 @@ At the time of writing those docs aren't very good, so you might want to look at
 ### Telegram bot
 
 Please refer to the [Telegram bot API docs](https://core.telegram.org/bots#3-how-do-i-create-a-bot) for instruction on how to create a bot. TL;DR: Talk to `@BotFather` on Telegram, follow its instructions and take note of the token it will give you.
-
-## Running
-
-You run `nix build` to build the whole thing from scratch. For development, I suggest you use `ghcid -r`, to compile, watch for changes and restart the bot when needed.
 
 ## Configuration
 
