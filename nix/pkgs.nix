@@ -1,5 +1,5 @@
 let
-  lockFile = builtins.fromJSON (builtins.readFile ./devenv.lock);
+  lockFile = builtins.fromJSON (builtins.readFile ../devenv.lock);
   pkgsSpec = lockFile.nodes.nixpkgs-stable.locked;
 in
 import

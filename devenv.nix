@@ -1,13 +1,12 @@
 { pkgs, ... }:
 
 let
-  splitbot = import ./default.nix { pkgs = pkgs; };
+  haskell-app = import ./nix/haskell-app.nix { pkgs = pkgs; };
 in
 {
   # https://devenv.sh/basics/
   env = {
-    # include build environment for the haskell app (includes GHC with packages!)
-    inherit (splitbot.env);
+    inherit (haskell-app.env);
   };
 
   # https://devenv.sh/packages/
