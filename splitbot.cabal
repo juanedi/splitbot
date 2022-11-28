@@ -3,6 +3,7 @@ name:               splitbot
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
+--
 -- synopsis:
 
 -- A longer description of the package.
@@ -33,7 +34,7 @@ executable splitbot
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.14.1.0
+    build-depends:    base ^>=4.15.1.0
                     , bytestring
                     , containers
                     , http-types

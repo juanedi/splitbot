@@ -14,17 +14,26 @@ jobs:
 
       - run:
           name: Install system dependencies
-          command: nix-env -i openssh git
+          command: |
+            nix-env -iA nixpkgs.openssh nixpkgs.git nixpkgs.cachix nixpkgs.bash
+            cachix use devenv
+            nix-env -if https://github.com/cachix/devenv/tarball/v0.4
 
       - checkout
 
+      # TODO: seeing the following error when running this in Circle:
+      #   error: path '/root/project/.devenv/gc/ci' is not a valid garbage collector root; it's not in the directory '/nix/var/nix/gcroots'
+      # - run:
+      #     name: Devenv check
+      #     command: devenv ci
+
       - run:
           name: Formatter check
-          command: nix-shell --command "bash .circleci/check-fourmolu.sh"
+          command: devenv shell bash .circleci/check-fourmolu.sh
 
       - run:
           name: Build docker image
-          command: nix-build --show-trace --argstr imageName $DOCKER_IMAGE_NAME --argstr tag ${CIRCLE_TAG:-$CIRCLE_BRANCH} nix/docker_image.nix
+          command: nix-build --show-trace --argstr imageName $DOCKER_IMAGE_NAME --argstr tag ${CIRCLE_TAG:-$CIRCLE_BRANCH} nix/release.nix
 
       - run:
           name: Hard-linking result to current directory

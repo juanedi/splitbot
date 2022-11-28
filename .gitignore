@@ -7,3 +7,10 @@ cabal.project.local
 dist
 dist-newstyle
 TAGS
+.devenv*
+devenv.local.nix
+
+# regenerated on a different path store in CI
+.pre-commit-config.yaml
+
+.DS_Store

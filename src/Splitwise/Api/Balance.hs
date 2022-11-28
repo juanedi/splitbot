@@ -29,4 +29,4 @@ instance FromJSON CurrencyBalance where
 
 
 invert :: Balance -> Balance
-invert = fmap (\(CurrencyBalance c a) -> CurrencyBalance c (- a))
+invert = fmap (\(CurrencyBalance c a) -> CurrencyBalance c (-a))
