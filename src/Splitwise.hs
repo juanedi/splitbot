@@ -8,7 +8,6 @@ module Splitwise (
 ) where
 
 import qualified Conversation.Expense as Expense
-import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who
@@ -58,7 +57,7 @@ createExpense ::
   IO ExpenseOutcome
 createExpense http role group expense = do
   let description =
-        (Description.text . Expense.description) expense
+        (Expense.descriptionText . Expense.description) expense
       cost = (Expense.amountValue . Expense.amount) expense
       payer = Expense.payer expense
       (ownerPaidShare, peerPaidShare) = paidShares payer role cost

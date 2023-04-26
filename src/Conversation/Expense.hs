@@ -1,10 +1,11 @@
 module Conversation.Expense (
   Expense (..),
   Amount (..),
+  Description (..),
   amountValue,
+  descriptionText,
 ) where
 
-import Conversation.Parameters.Description (Description)
 import Conversation.Parameters.Split (Split)
 import Conversation.Parameters.Who (Who)
 
@@ -24,5 +25,15 @@ newtype Amount = Amount
   deriving (Show)
 
 
+newtype Description = Description
+  { text :: String
+  }
+  deriving (Show)
+
+
 amountValue :: Amount -> Integer
 amountValue (Amount n) = n
+
+
+descriptionText :: Description -> String
+descriptionText (Description s) = s

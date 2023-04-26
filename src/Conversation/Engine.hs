@@ -6,10 +6,8 @@
 module Conversation.Engine (State, Outcome (..), start, update) where
 
 import Control.Applicative ((<|>))
-import Conversation.Expense (Amount (..), Expense)
+import Conversation.Expense (Amount (..), Description (..), Expense)
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Description (Description)
-import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who (Who)
@@ -71,7 +69,7 @@ start message preset =
       , Telegram.Reply.plain "👋 Hey! Please enter a description for the expense report."
       )
     _ ->
-      let description = Description.Description message
+      let description = Description message
        in ( AwaitingInitialConfirmation preset description
           , confirmDescription description
           )
@@ -84,7 +82,7 @@ update userMessage state =
       continue
         ( AwaitingAmount
             { preset = preset
-            , description = Description.Description userMessage
+            , description = Description userMessage
             }
         )
         (Telegram.Reply.plain "How much?")
@@ -160,7 +158,7 @@ terminate = Terminate (Telegram.Reply.plain "Alright, the expense was discarded 
 
 
 confirmDescription :: Description -> Reply
-confirmDescription (Description.Description description) =
+confirmDescription (Description description) =
   Telegram.Reply.withOptions
     ( concat
         [ "👋 Hey! We'll create an expense report for \""
@@ -246,7 +244,7 @@ constParser accepts value = string accepts >> return value
 askConfirmation :: Expense -> Reply
 askConfirmation expense =
   let descriptionLine =
-        concat ["*", (Description.text . Expense.description) expense, "*\n"]
+        concat ["*", (Expense.descriptionText . Expense.description) expense, "*\n"]
 
       payerLine =
         concat

@@ -11,7 +11,6 @@ module Conversation (
 import Conversation.Engine as Engine
 import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
-import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who
@@ -128,7 +127,7 @@ peerNotification expense balanceResult =
 expenseSummary :: Expense -> String
 expenseSummary expense =
   mconcat
-    [ concat ["*", (Description.text . Expense.description) expense, "*\n"]
+    [ concat ["*", (Expense.descriptionText . Expense.description) expense, "*\n"]
     , concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
     , concat
         ["Your share: ", show $ (Split.peerPart . Expense.split) expense, "%\n"]
@@ -160,7 +159,7 @@ balanceSummary balance =
 askForConfirmation :: Expense -> Reply
 askForConfirmation expense =
   let descriptionLine =
-        concat ["*", (Description.text . Expense.description) expense, "*\n"]
+        concat ["*", (Expense.descriptionText . Expense.description) expense, "*\n"]
 
       payerLine =
         concat
