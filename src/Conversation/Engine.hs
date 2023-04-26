@@ -6,10 +6,8 @@
 module Conversation.Engine (State, Outcome (..), start, update) where
 
 import Control.Applicative ((<|>))
-import Conversation.Expense (Expense)
+import Conversation.Expense (Amount (..), Expense)
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Amount (Amount)
-import qualified Conversation.Parameters.Amount as Amount
 import Conversation.Parameters.Description (Description)
 import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
@@ -179,7 +177,7 @@ askAmount =
 
 
 parseAmount :: String -> Maybe Amount
-parseAmount str = Amount.Amount <$> readMaybe str
+parseAmount str = Amount <$> readMaybe str
 
 
 askWho :: Reply
@@ -260,7 +258,7 @@ askConfirmation expense =
           ]
 
       amountLine =
-        concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+        concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
 
       splitLine =
         concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]

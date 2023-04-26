@@ -11,8 +11,6 @@ module Conversation (
 import Conversation.Engine as Engine
 import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Amount (Amount)
-import qualified Conversation.Parameters.Amount as Amount
 import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
@@ -131,7 +129,7 @@ expenseSummary :: Expense -> String
 expenseSummary expense =
   mconcat
     [ concat ["*", (Description.text . Expense.description) expense, "*\n"]
-    , concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+    , concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
     , concat
         ["Your share: ", show $ (Split.peerPart . Expense.split) expense, "%\n"]
     , "Payed by "
@@ -174,7 +172,7 @@ askForConfirmation expense =
           ]
 
       amountLine =
-        concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+        concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
 
       splitLine =
         concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]

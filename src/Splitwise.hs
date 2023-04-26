@@ -7,8 +7,7 @@ module Splitwise (
   ExpenseOutcome (..),
 ) where
 
-import qualified Conversation.Expense
-import qualified Conversation.Parameters.Amount as Amount
+import qualified Conversation.Expense as Expense
 import qualified Conversation.Parameters.Description as Description
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
@@ -55,15 +54,15 @@ createExpense ::
   Http.Manager ->
   Role ->
   Group ->
-  Conversation.Expense.Expense ->
+  Expense.Expense ->
   IO ExpenseOutcome
 createExpense http role group expense = do
   let description =
-        (Description.text . Conversation.Expense.description) expense
-      cost = (Amount.value . Conversation.Expense.amount) expense
-      payer = Conversation.Expense.payer expense
+        (Description.text . Expense.description) expense
+      cost = (Expense.amountValue . Expense.amount) expense
+      payer = Expense.payer expense
       (ownerPaidShare, peerPaidShare) = paidShares payer role cost
-      split = Conversation.Expense.split expense
+      split = Expense.split expense
       (myOwedShare, buddysOwedShare) = owedShares split role cost
       apiToken = token group
   success <-
