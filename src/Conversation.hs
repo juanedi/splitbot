@@ -28,6 +28,13 @@ import qualified Telegram.Reply as Reply
 
 
 data Conversation
+  = GatheringInfo ChatState
+  | AwaitingConfirmation Expense
+  | SavingExpense Expense
+  | FetchingBalance Expense
+
+
+data ChatState
   = -- Initial state when user first contacts the bot via the '/start' command
     AwaitingDescription
       { preset :: Split
@@ -52,9 +59,6 @@ data Conversation
       , payer :: Who
       , amount :: Amount
       }
-  | AwaitingConfirmation Expense
-  | SavingExpense Expense
-  | FetchingBalance Expense
 
 
 data Event
@@ -75,9 +79,9 @@ start message preset =
   let description = Description.read message
    in case message of
         "/start" ->
-          (Just (AwaitingDescription preset), [Answer Description.ask])
+          (Just (GatheringInfo (AwaitingDescription preset)), [Answer Description.ask])
         _ ->
-          ( Just (AwaitingInitialConfirmation preset description)
+          ( Just (GatheringInfo (AwaitingInitialConfirmation preset description))
           , [Answer (Description.confirm description)]
           )
 
@@ -105,64 +109,70 @@ update event conversation =
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
 messageReceived userMessage conversation =
   case conversation of
-    AwaitingDescription preset ->
-      ( Just $
-          AwaitingAmount
-            { preset = preset
-            , description = Description.read userMessage
-            }
-      , [Answer Amount.ask]
-      )
-    AwaitingInitialConfirmation preset description ->
-      if Description.readConfirmation userMessage
-        then
-          ( Just $ AwaitingAmount {preset = preset, description = description}
+    GatheringInfo chatState ->
+      case chatState of
+        AwaitingDescription preset ->
+          ( Just $
+              GatheringInfo $
+                AwaitingAmount
+                  { preset = preset
+                  , description = Description.read userMessage
+                  }
           , [Answer Amount.ask]
           )
-        else (Nothing, [Answer cancelled])
-    AwaitingAmount preset description ->
-      case Amount.parse userMessage of
-        Just amount ->
-          ( Just
-              ( AwaitingPayer
-                  { preset = preset
-                  , description = description
-                  , amount = amount
-                  }
+        AwaitingInitialConfirmation preset description ->
+          if Description.readConfirmation userMessage
+            then
+              ( Just $ GatheringInfo $ AwaitingAmount {preset = preset, description = description}
+              , [Answer Amount.ask]
               )
-          , [Answer Payer.ask]
-          )
-        Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
-    AwaitingPayer preset description amount ->
-      case Payer.parse userMessage of
-        Just payer ->
-          ( Just $
-              AwaitingSplit
-                { preset = preset
-                , description = description
-                , amount = amount
-                , payer = payer
-                }
-          , [Answer (Split.ask preset)]
-          )
-        Nothing ->
-          (Just conversation, [Answer (Reply.apologizing Payer.ask)])
-    AwaitingSplit preset description payer amount ->
-      case Split.parse userMessage of
-        Just split ->
-          let expense =
-                ( Expense.Expense
-                    { Expense.description = description
-                    , Expense.payer = payer
-                    , Expense.amount = amount
-                    , Expense.split = split
-                    }
-                )
-           in ( Just (AwaitingConfirmation expense)
-              , [Answer (Confirmation.ask expense)]
+            else (Nothing, [Answer cancelled])
+        AwaitingAmount preset description ->
+          case Amount.parse userMessage of
+            Just amount ->
+              ( Just
+                  ( GatheringInfo
+                      ( AwaitingPayer
+                          { preset = preset
+                          , description = description
+                          , amount = amount
+                          }
+                      )
+                  )
+              , [Answer Payer.ask]
               )
-        Nothing ->
-          (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
+            Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
+        AwaitingPayer preset description amount ->
+          case Payer.parse userMessage of
+            Just payer ->
+              ( Just $
+                  GatheringInfo $
+                    AwaitingSplit
+                      { preset = preset
+                      , description = description
+                      , amount = amount
+                      , payer = payer
+                      }
+              , [Answer (Split.ask preset)]
+              )
+            Nothing ->
+              (Just conversation, [Answer (Reply.apologizing Payer.ask)])
+        AwaitingSplit preset description payer amount ->
+          case Split.parse userMessage of
+            Just split ->
+              let expense =
+                    ( Expense.Expense
+                        { Expense.description = description
+                        , Expense.payer = payer
+                        , Expense.amount = amount
+                        , Expense.split = split
+                        }
+                    )
+               in ( Just (AwaitingConfirmation expense)
+                  , [Answer (Confirmation.ask expense)]
+                  )
+            Nothing ->
+              (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
     AwaitingConfirmation expense ->
       if Confirmation.read userMessage
         then
