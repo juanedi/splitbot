@@ -55,9 +55,7 @@ executable splitbot
                 ,  Conversation.Engine
                 ,  Conversation.Expense
                 ,  Conversation.Parameters.Amount
-                ,  Conversation.Parameters.Confirmation
                 ,  Conversation.Parameters.Description
-                ,  Conversation.Parameters.Payer
                 ,  Conversation.Parameters.Split
                 ,  Conversation.Parameters.Who
                 ,  Core

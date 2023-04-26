@@ -13,10 +13,7 @@ import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
 import Conversation.Parameters.Amount (Amount)
 import qualified Conversation.Parameters.Amount as Amount
-import qualified Conversation.Parameters.Confirmation as Confirmation
-import Conversation.Parameters.Description (Description)
 import qualified Conversation.Parameters.Description as Description
-import qualified Conversation.Parameters.Payer as Payer
 import Conversation.Parameters.Split (Split)
 import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who
@@ -90,10 +87,10 @@ messageReceived userMessage conversation =
           )
         Engine.Confirm expense ->
           ( Just (AwaitingConfirmation expense)
-          , [Answer (Confirmation.ask expense)]
+          , [Answer (askForConfirmation expense)]
           )
     AwaitingConfirmation expense ->
-      if Confirmation.read userMessage
+      if userMessage == "Yes"
         then
           ( Just (SavingExpense expense)
           , [Answer holdOn, Store ExpenseCreationDone expense]
@@ -160,6 +157,37 @@ balanceSummary balance =
         , " "
         , show (Balance.currency cb) ++ " " ++ show (abs $ Balance.amount cb)
         ]
+
+
+askForConfirmation :: Expense -> Reply
+askForConfirmation expense =
+  let descriptionLine =
+        concat ["*", (Description.text . Expense.description) expense, "*\n"]
+
+      payerLine =
+        concat
+          [ "Payed by "
+          , case Expense.payer expense of
+              Me -> "me"
+              They -> "them"
+          , "\n"
+          ]
+
+      amountLine =
+        concat ["Total: $", show $ (Amount.value . Expense.amount) expense, "\n"]
+
+      splitLine =
+        concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
+   in Reply.withOptions
+        ( concat
+            [ "Is this correct❓\n\n"
+            , descriptionLine
+            , amountLine
+            , payerLine
+            , splitLine
+            ]
+        )
+        ["Yes", "No"]
 
 
 cancelled :: Reply
