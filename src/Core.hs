@@ -10,8 +10,7 @@ module Core (
 
 import Conversation (Conversation)
 import qualified Conversation
-import Conversation.Parameters.Split (Split)
-import qualified Conversation.Parameters.Split as Split
+import Conversation.Expense (Split (..))
 import Settings (Settings)
 import qualified Settings
 import qualified Splitwise
@@ -83,14 +82,14 @@ initialize settings =
               User
                 { telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
                 , splitwiseRole = Splitwise.Owner
-                , preset = Split.init presetA
+                , preset = Split presetA
                 , conversationState = Uninitialized
                 }
           , userB =
               User
                 { telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
                 , splitwiseRole = Splitwise.Peer
-                , preset = Split.init presetB
+                , preset = Split presetB
                 , conversationState = Uninitialized
                 }
           }

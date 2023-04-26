@@ -9,10 +9,8 @@ module Conversation (
 ) where
 
 import Conversation.Engine as Engine
-import Conversation.Expense (Expense)
+import Conversation.Expense (Expense, Split)
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Split (Split)
-import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who
 import Data.Maybe (fromMaybe)
 import qualified Splitwise
@@ -130,7 +128,7 @@ expenseSummary expense =
     [ concat ["*", (Expense.descriptionText . Expense.description) expense, "*\n"]
     , concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
     , concat
-        ["Your share: ", show $ (Split.peerPart . Expense.split) expense, "%\n"]
+        ["Your share: ", show $ (Expense.peerPart . Expense.split) expense, "%\n"]
     , "Payed by "
     , case Expense.payer expense of
         Me -> "them"
@@ -174,7 +172,7 @@ askForConfirmation expense =
         concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
 
       splitLine =
-        concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
+        concat ["I owe ", show $ Expense.myPart (Expense.split expense), "%", "\n"]
    in Reply.withOptions
         ( concat
             [ "Is this correct❓\n\n"

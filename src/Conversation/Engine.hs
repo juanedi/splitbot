@@ -6,10 +6,8 @@
 module Conversation.Engine (State, Outcome (..), start, update) where
 
 import Control.Applicative ((<|>))
-import Conversation.Expense (Amount (..), Description (..), Expense)
+import Conversation.Expense (Amount (..), Description (..), Expense, Split (..))
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Split (Split)
-import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who (Who)
 import qualified Conversation.Parameters.Who as Who
 import Data.Char (toLower)
@@ -121,7 +119,7 @@ update userMessage state =
             )
             ( Telegram.Reply.withOptions
                 "How will you split it?"
-                ["Evenly", "All on me", "All on them", show (Split.myPart preset) ++ "% on me"]
+                ["Evenly", "All on me", "All on them", show (Expense.myPart preset) ++ "% on me"]
             )
         Nothing ->
           continue
@@ -198,7 +196,7 @@ askSplit :: Split -> Reply
 askSplit preset =
   Telegram.Reply.withOptions
     "How will you split it?"
-    ["Evenly", "All on me", "All on them", show (Split.myPart preset) ++ "% on me"]
+    ["Evenly", "All on me", "All on them", show (Expense.myPart preset) ++ "% on me"]
 
 
 parseSplit :: String -> Maybe Split
@@ -214,9 +212,9 @@ parseSplit' str = parseString (splitParser <* eof) mempty (map toLower str)
 
 splitParser :: Parser Split
 splitParser =
-  (try (constParser "evenly" (Split.Split 50)) <?> "tried 'evenly'")
-    <|> (try (constParser "all on me" (Split.Split 100)) <?> "tried 'all on me'")
-    <|> (try (constParser "all on them" (Split.Split 0)) <?> "tried 'all on them'")
+  (try (constParser "evenly" (Split 50)) <?> "tried 'evenly'")
+    <|> (try (constParser "all on me" (Split 100)) <?> "tried 'all on me'")
+    <|> (try (constParser "all on them" (Split 0)) <?> "tried 'all on them'")
     <|> myShareParser
 
 
@@ -227,8 +225,8 @@ myShareParser = do
   who <- whoParser
   if 0 <= share && share <= 100
     then case who of
-      Who.Me -> return (Split.Split share)
-      Who.They -> return (Split.Split (100 - share))
+      Who.Me -> return (Split share)
+      Who.They -> return (Split (100 - share))
     else fail "Share must be between 0% and 100%"
 
 
@@ -259,7 +257,7 @@ askConfirmation expense =
         concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
 
       splitLine =
-        concat ["I owe ", show $ Split.myPart (Expense.split expense), "%", "\n"]
+        concat ["I owe ", show $ Expense.myPart (Expense.split expense), "%", "\n"]
    in Telegram.Reply.withOptions
         ( concat
             [ "Is this correct❓\n\n"

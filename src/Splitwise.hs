@@ -7,9 +7,8 @@ module Splitwise (
   ExpenseOutcome (..),
 ) where
 
+import Conversation.Expense (Split)
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Split (Split)
-import qualified Conversation.Parameters.Split as Split
 import Conversation.Parameters.Who
 import qualified Currency
 import Data.ByteString.Char8 (pack)
@@ -112,7 +111,7 @@ paidShares They Peer cost = (cost, 0)
 owedShares :: Split -> Role -> Integer -> (Integer, Integer)
 owedShares split role cost =
   let myShare =
-        round $ (fromInteger (cost * Split.myPart split) :: Double) / 100
+        round $ (fromInteger (cost * Expense.myPart split) :: Double) / 100
    in case role of
         Owner -> (myShare, cost - myShare)
         Peer -> (cost - myShare, myShare)
