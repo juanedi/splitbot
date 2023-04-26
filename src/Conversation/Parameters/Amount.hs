@@ -1,7 +1,5 @@
 module Conversation.Parameters.Amount (
   Amount (..),
-  ask,
-  parse,
 ) where
 
 import Telegram.Reply (Reply)
@@ -13,11 +11,3 @@ newtype Amount = Amount
   { value :: Integer
   }
   deriving (Show)
-
-
-ask :: Reply
-ask = Reply.plain "How much?"
-
-
-parse :: String -> Maybe Amount
-parse str = Amount <$> readMaybe str

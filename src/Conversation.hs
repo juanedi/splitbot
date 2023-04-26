@@ -4,10 +4,11 @@ module Conversation (
   Effect (..),
   Expense (..),
   messageReceived,
-  start,
-  update,
+  Conversation.start,
+  Conversation.update,
 ) where
 
+import Conversation.Engine as Engine
 import Conversation.Expense (Expense)
 import qualified Conversation.Expense as Expense
 import Conversation.Parameters.Amount (Amount)
@@ -28,37 +29,10 @@ import qualified Telegram.Reply as Reply
 
 
 data Conversation
-  = GatheringInfo ChatState
+  = GatheringInfo Engine.State
   | AwaitingConfirmation Expense
   | SavingExpense Expense
   | FetchingBalance Expense
-
-
-data ChatState
-  = -- Initial state when user first contacts the bot via the '/start' command
-    AwaitingDescription
-      { preset :: Split
-      }
-  | -- Initial state when the user contacts the bot sending a description
-    AwaitingInitialConfirmation
-      { preset :: Split
-      , description :: Description
-      }
-  | AwaitingAmount
-      { preset :: Split
-      , description :: Description
-      }
-  | AwaitingPayer
-      { preset :: Split
-      , description :: Description
-      , amount :: Amount
-      }
-  | AwaitingSplit
-      { preset :: Split
-      , description :: Description
-      , payer :: Who
-      , amount :: Amount
-      }
 
 
 data Event
@@ -76,14 +50,9 @@ data Effect
 
 start :: String -> Split -> (Maybe Conversation, [Effect])
 start message preset =
-  let description = Description.read message
-   in case message of
-        "/start" ->
-          (Just (GatheringInfo (AwaitingDescription preset)), [Answer Description.ask])
-        _ ->
-          ( Just (GatheringInfo (AwaitingInitialConfirmation preset description))
-          , [Answer (Description.confirm description)]
-          )
+  case Engine.start message preset of
+    (engineState, reply) ->
+      (Just (GatheringInfo engineState), [Answer reply])
 
 
 update :: Event -> Conversation -> (Maybe Conversation, [Effect])
@@ -109,70 +78,20 @@ update event conversation =
 messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
 messageReceived userMessage conversation =
   case conversation of
-    GatheringInfo chatState ->
-      case chatState of
-        AwaitingDescription preset ->
-          ( Just $
-              GatheringInfo $
-                AwaitingAmount
-                  { preset = preset
-                  , description = Description.read userMessage
-                  }
-          , [Answer Amount.ask]
+    GatheringInfo engineState ->
+      case Engine.update userMessage engineState of
+        Engine.Continue engineState' reply ->
+          ( Just (GatheringInfo engineState)
+          , [Answer reply]
           )
-        AwaitingInitialConfirmation preset description ->
-          if Description.readConfirmation userMessage
-            then
-              ( Just $ GatheringInfo $ AwaitingAmount {preset = preset, description = description}
-              , [Answer Amount.ask]
-              )
-            else (Nothing, [Answer cancelled])
-        AwaitingAmount preset description ->
-          case Amount.parse userMessage of
-            Just amount ->
-              ( Just
-                  ( GatheringInfo
-                      ( AwaitingPayer
-                          { preset = preset
-                          , description = description
-                          , amount = amount
-                          }
-                      )
-                  )
-              , [Answer Payer.ask]
-              )
-            Nothing -> (Just conversation, [Answer (Reply.apologizing Amount.ask)])
-        AwaitingPayer preset description amount ->
-          case Payer.parse userMessage of
-            Just payer ->
-              ( Just $
-                  GatheringInfo $
-                    AwaitingSplit
-                      { preset = preset
-                      , description = description
-                      , amount = amount
-                      , payer = payer
-                      }
-              , [Answer (Split.ask preset)]
-              )
-            Nothing ->
-              (Just conversation, [Answer (Reply.apologizing Payer.ask)])
-        AwaitingSplit preset description payer amount ->
-          case Split.parse userMessage of
-            Just split ->
-              let expense =
-                    ( Expense.Expense
-                        { Expense.description = description
-                        , Expense.payer = payer
-                        , Expense.amount = amount
-                        , Expense.split = split
-                        }
-                    )
-               in ( Just (AwaitingConfirmation expense)
-                  , [Answer (Confirmation.ask expense)]
-                  )
-            Nothing ->
-              (Just conversation, [Answer (Reply.apologizing (Split.ask preset))])
+        Engine.Terminate reply ->
+          ( Nothing
+          , [Answer reply]
+          )
+        Engine.Confirm expense ->
+          ( Just (AwaitingConfirmation expense)
+          , [Answer (Confirmation.ask expense)]
+          )
     AwaitingConfirmation expense ->
       if Confirmation.read userMessage
         then

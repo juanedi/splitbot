@@ -2,7 +2,6 @@ module Conversation.Parameters.Description (
   Description (..),
   ask,
   confirm,
-  Conversation.Parameters.Description.read,
   readConfirmation,
 ) where
 
@@ -30,10 +29,6 @@ confirm (Description description) =
         ]
     )
     ["Yes", "No"]
-
-
-read :: String -> Description
-read = Description
 
 
 readConfirmation :: String -> Bool

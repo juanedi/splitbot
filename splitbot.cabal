@@ -52,6 +52,7 @@ executable splitbot
                     , directory
     hs-source-dirs:   app, src
     other-modules: Conversation
+                ,  Conversation.Engine
                 ,  Conversation.Expense
                 ,  Conversation.Parameters.Amount
                 ,  Conversation.Parameters.Confirmation
