@@ -7,9 +7,8 @@ module Splitwise (
   ExpenseOutcome (..),
 ) where
 
-import Conversation.Expense (Split)
+import Conversation.Expense (Split, Who (..))
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Who
 import qualified Currency
 import Data.ByteString.Char8 (pack)
 import qualified Network.HTTP.Client as Http

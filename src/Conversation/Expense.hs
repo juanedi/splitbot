@@ -3,12 +3,11 @@ module Conversation.Expense (
   Amount (..),
   Description (..),
   Split (..),
+  Who (..),
   amountValue,
   descriptionText,
   peerPart,
 ) where
-
-import Conversation.Parameters.Who (Who)
 
 
 data Expense = Expense
@@ -35,6 +34,12 @@ newtype Description = Description
 newtype Split = Split
   { myPart :: Integer
   }
+  deriving (Show)
+
+
+data Who
+  = Me
+  | They
   deriving (Show)
 
 

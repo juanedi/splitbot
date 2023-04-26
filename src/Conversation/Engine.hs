@@ -6,10 +6,8 @@
 module Conversation.Engine (State, Outcome (..), start, update) where
 
 import Control.Applicative ((<|>))
-import Conversation.Expense (Amount (..), Description (..), Expense, Split (..))
+import Conversation.Expense (Amount (..), Description (..), Expense, Split (..), Who (..))
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Who (Who)
-import qualified Conversation.Parameters.Who as Who
 import Data.Char (toLower)
 import Telegram.Reply (Reply)
 import qualified Telegram.Reply
@@ -185,9 +183,9 @@ parseWho :: String -> Maybe Who
 parseWho str =
   case map toLower str of
     "me" ->
-      Just Who.Me
+      Just Me
     "they" ->
-      Just Who.They
+      Just They
     _ ->
       Nothing
 
@@ -225,14 +223,14 @@ myShareParser = do
   who <- whoParser
   if 0 <= share && share <= 100
     then case who of
-      Who.Me -> return (Split share)
-      Who.They -> return (Split (100 - share))
+      Me -> return (Split share)
+      They -> return (Split (100 - share))
     else fail "Share must be between 0% and 100%"
 
 
 whoParser :: Parser Who
 whoParser =
-  (try (constParser "me" Who.Me) <?> "tried 'I'") <|> constParser "them" Who.They
+  (try (constParser "me" Me) <?> "tried 'I'") <|> constParser "them" They
 
 
 constParser :: String -> a -> Parser a
@@ -248,8 +246,8 @@ askConfirmation expense =
         concat
           [ "Payed by "
           , case Expense.payer expense of
-              Who.Me -> "me"
-              Who.They -> "them"
+              Me -> "me"
+              They -> "them"
           , "\n"
           ]
 

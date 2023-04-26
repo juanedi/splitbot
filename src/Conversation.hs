@@ -9,9 +9,8 @@ module Conversation (
 ) where
 
 import Conversation.Engine as Engine
-import Conversation.Expense (Expense, Split)
+import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
-import Conversation.Parameters.Who
 import Data.Maybe (fromMaybe)
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
