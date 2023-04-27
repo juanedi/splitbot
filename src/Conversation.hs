@@ -21,7 +21,6 @@ import qualified Telegram.Reply as Reply
 
 data Conversation
   = GatheringInfo Engine.State
-  | AwaitingConfirmation Expense
   | SavingExpense Expense
   | FetchingBalance Expense
 
@@ -79,17 +78,10 @@ messageReceived userMessage conversation =
           ( Nothing
           , [Answer reply]
           )
-        Engine.Confirm expense ->
-          ( Just (AwaitingConfirmation expense)
-          , [Answer (askForConfirmation expense)]
-          )
-    AwaitingConfirmation expense ->
-      if userMessage == "Yes"
-        then
+        Engine.Done expense ->
           ( Just (SavingExpense expense)
           , [Answer holdOn, Store ExpenseCreationDone expense]
           )
-        else (Nothing, [Answer cancelled])
     SavingExpense _ -> (Just conversation, [Answer holdOn])
     FetchingBalance _ -> (Just conversation, [Answer holdOn])
 
@@ -151,38 +143,3 @@ balanceSummary balance =
         , " "
         , show (Balance.currency cb) ++ " " ++ show (abs $ Balance.amount cb)
         ]
-
-
-askForConfirmation :: Expense -> Reply
-askForConfirmation expense =
-  let descriptionLine =
-        concat ["*", (Expense.descriptionText . Expense.description) expense, "*\n"]
-
-      payerLine =
-        concat
-          [ "Payed by "
-          , case Expense.payer expense of
-              Me -> "me"
-              They -> "them"
-          , "\n"
-          ]
-
-      amountLine =
-        concat ["Total: $", show $ (Expense.amountValue . Expense.amount) expense, "\n"]
-
-      splitLine =
-        concat ["I owe ", show $ Expense.myPart (Expense.split expense), "%", "\n"]
-   in Reply.withOptions
-        ( concat
-            [ "Is this correct❓\n\n"
-            , descriptionLine
-            , amountLine
-            , payerLine
-            , splitLine
-            ]
-        )
-        ["Yes", "No"]
-
-
-cancelled :: Reply
-cancelled = Reply.plain "Alright, the expense was discarded 👍"

@@ -49,12 +49,13 @@ data State
       , payer :: Who
       , amount :: Amount
       }
+  | AwaitingConfirmation Expense
 
 
 data Outcome
   = Continue State Reply
   | Terminate Reply
-  | Confirm Expense
+  | Done Expense
 
 
 start :: String -> Split -> (State, Reply)
@@ -75,7 +76,7 @@ update :: String -> State -> Outcome
 update userMessage state =
   case state of
     AwaitingDescription preset ->
-      continue
+      Continue
         ( AwaitingAmount
             { preset = preset
             , description = Description userMessage
@@ -85,14 +86,14 @@ update userMessage state =
     AwaitingInitialConfirmation preset description ->
       if userMessage == "Yes"
         then
-          continue
+          Continue
             (AwaitingAmount {preset = preset, description = description})
             (Telegram.Reply.plain "How much?")
         else terminate
     AwaitingAmount preset description ->
       case parseAmount userMessage of
         Just amount ->
-          continue
+          Continue
             ( AwaitingPayer
                 { preset = preset
                 , description = description
@@ -101,13 +102,13 @@ update userMessage state =
             )
             askWho
         Nothing ->
-          continue
+          Continue
             state
             (Telegram.Reply.apologizing askAmount)
     AwaitingPayer preset description amount ->
       case parseWho userMessage of
         Just payer ->
-          continue
+          Continue
             ( AwaitingSplit
                 { preset = preset
                 , description = description
@@ -120,7 +121,7 @@ update userMessage state =
                 ["Evenly", "All on me", "All on them", show (Expense.myPart preset) ++ "% on me"]
             )
         Nothing ->
-          continue
+          Continue
             state
             askWho
     AwaitingSplit preset description payer amount ->
@@ -134,19 +135,17 @@ update userMessage state =
                     , Expense.split = split
                     }
                 )
-           in confirm expense
+           in Continue
+                (AwaitingConfirmation expense)
+                (askConfirmation expense)
         Nothing ->
-          continue
+          Continue
             state
             (Telegram.Reply.apologizing (askSplit preset))
-
-
-continue :: State -> Reply -> Outcome
-continue = Continue
-
-
-confirm :: Expense -> Outcome
-confirm = Confirm
+    AwaitingConfirmation expense ->
+      if userMessage == "Yes"
+        then Done expense
+        else terminate
 
 
 terminate :: Outcome
