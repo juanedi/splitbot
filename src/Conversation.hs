@@ -72,7 +72,7 @@ messageReceived userMessage conversation =
     GatheringInfo engineState ->
       case Engine.update userMessage engineState of
         Engine.Continue engineState' reply ->
-          ( Just (GatheringInfo engineState)
+          ( Just (GatheringInfo engineState')
           , [Answer reply]
           )
         Engine.Terminate reply ->
