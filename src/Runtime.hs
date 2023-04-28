@@ -23,7 +23,7 @@ import Text.Read (readMaybe)
 
 
 data Runtime = Runtime
-  { telegramToken :: Telegram.Token
+  { telegram :: Telegram.Handler
   , splitwiseGroup :: Splitwise.Group
   , storePath :: FilePath
   , http :: Http.Manager
@@ -49,7 +49,7 @@ startPolling settings = do
   _ <-
     concurrently
       (loop runtime)
-      (Telegram.LongPolling.run (onMessage runtime) (telegramToken runtime))
+      (Telegram.LongPolling.run (onMessage runtime) (telegram runtime))
   return ()
 
 
@@ -74,7 +74,7 @@ init settings = do
   let (core, initialEffects) = Core.initialize settings
       runtime =
         Runtime
-          { telegramToken = Telegram.Token $ Settings.telegramToken settings
+          { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)
           , splitwiseGroup =
               Splitwise.group
                 (Settings.userASplitwiseToken settings)
@@ -160,8 +160,7 @@ sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
 sendMessage runtime chatId reply = do
   result <-
     Telegram.sendMessage
-      (http runtime)
-      (telegramToken runtime)
+      (telegram runtime)
       chatId
       reply
   if result
