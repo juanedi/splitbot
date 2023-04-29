@@ -24,9 +24,8 @@ import Text.Read (readMaybe)
 
 data Runtime = Runtime
   { telegram :: Telegram.Handler
-  , splitwiseGroup :: Splitwise.Group
+  , splitwise :: Splitwise.Handler
   , storePath :: FilePath
-  , http :: Http.Manager
   , queue :: Queue Core.Event
   , core :: Core.Model
   }
@@ -75,13 +74,13 @@ init settings = do
       runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)
-          , splitwiseGroup =
-              Splitwise.group
+          , splitwise =
+              Splitwise.init
+                httpManager
                 (Settings.userASplitwiseToken settings)
                 (Settings.userASplitwiseId settings)
                 (Settings.userBSplitwiseId settings)
           , storePath = Settings.storePath settings
-          , http = httpManager
           , queue = queue
           , core = core
           }
@@ -137,9 +136,8 @@ runEffect runtime effect =
         Conversation.Store onOutcome expense -> do
           outcome <-
             Splitwise.createExpense
-              (http runtime)
+              (splitwise runtime)
               (Core.ownRole contactInfo)
-              (splitwiseGroup runtime)
               expense
           Queue.enqueue
             (queue runtime)
@@ -148,8 +146,7 @@ runEffect runtime effect =
         Conversation.GetBalance onBalance -> do
           result <-
             Splitwise.getBalance
-              (http runtime)
-              (splitwiseGroup runtime)
+              (splitwise runtime)
               (Core.ownRole contactInfo)
           Queue.enqueue
             (queue runtime)
