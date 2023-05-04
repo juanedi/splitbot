@@ -1,9 +1,9 @@
 module Runtime (start) where
 
 import Control.Concurrent.Async (concurrently)
-import qualified Control.Exception
 import qualified Conversation
 import qualified Core
+import qualified LocalDB
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
 import Queue (Queue)
@@ -11,21 +11,18 @@ import qualified Queue
 import Settings (Settings)
 import qualified Settings
 import qualified Splitwise
-import qualified System.Directory
-import qualified System.FilePath.Posix as FilePath
 import qualified Telegram
 import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import Telegram.Message (Message)
 import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
-import Text.Read (readMaybe)
 
 
 data Runtime = Runtime
   { telegram :: Telegram.Handler
   , splitwise :: Splitwise.Handler
-  , storePath :: FilePath
+  , localDB :: LocalDB.Handler
   , queue :: Queue Core.Event
   , core :: Core.Model
   }
@@ -80,7 +77,7 @@ init settings = do
                 (Settings.userASplitwiseToken settings)
                 (Settings.userASplitwiseId settings)
                 (Settings.userBSplitwiseId settings)
-          , storePath = Settings.storePath settings
+          , localDB = LocalDB.init (Settings.storePath settings)
           , queue = queue
           , core = core
           }
@@ -116,13 +113,13 @@ runEffect runtime effect =
     Core.LogError msg ->
       putStrLn msg
     Core.LoadChatId userId -> do
-      maybeChatId <- readChatId (storePath runtime) userId
+      maybeChatId <- LocalDB.readChatId (localDB runtime) userId
       case maybeChatId of
         Nothing -> return ()
         Just chatId -> do
           Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
     Core.PersistChatId userId chatId ->
-      persistChatId (storePath runtime) userId chatId
+      LocalDB.storeChatId (localDB runtime) userId chatId
     Core.ConversationEffect contactInfo eff ->
       case eff of
         Conversation.Answer reply ->
@@ -164,38 +161,3 @@ sendMessage runtime chatId reply = do
     then return ()
     else -- TODO: retry once and only log after second failure
       putStrLn "ERROR! Could not send message via telegram API"
-
-
-persistChatId :: FilePath -> Core.UserId -> Telegram.Api.ChatId -> IO ()
-persistChatId storePath userId (Telegram.Api.ChatId chatId) =
-  let (directoryPath, filePath) = chatIdPath storePath userId
-   in do
-        System.Directory.createDirectoryIfMissing True directoryPath
-        writeFile filePath (show chatId)
-
-
-readChatId :: FilePath -> Core.UserId -> IO (Maybe Telegram.Api.ChatId)
-readChatId storePath userId =
-  let (_, filePath) = chatIdPath storePath userId
-   in do
-        readResult <- tryReadFile filePath
-        return
-          ( case readResult of
-              Left _err -> Nothing
-              Right contents -> fmap Telegram.Api.ChatId (readMaybe contents)
-          )
-
-
-tryReadFile :: FilePath -> IO (Either IOError String)
-tryReadFile path = Control.Exception.try (readFile path)
-
-
-chatIdPath :: FilePath -> Core.UserId -> (FilePath, FilePath)
-chatIdPath storePath userId =
-  let userIdPart =
-        case userId of
-          Core.UserA -> "a"
-          Core.UserB -> "b"
-      directoryPath =
-        FilePath.joinPath [storePath, "users", userIdPart]
-   in (directoryPath, FilePath.joinPath [directoryPath, "chat_id"])
