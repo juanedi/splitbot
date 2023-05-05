@@ -91,36 +91,11 @@ onMessage runtime message =
 loop :: Runtime -> IO ()
 loop runtime = do
   event <- Queue.dequeue (queue runtime)
-  (updatedCore, effects) <-
+  updatedCore <-
     Core.update
       (telegram runtime)
       (splitwise runtime)
       (localStore runtime)
       event
       (core runtime)
-  runEffects runtime effects
   loop (runtime {core = updatedCore})
-
-
-runEffects :: Runtime -> [Core.Effect] -> IO ()
-runEffects runtime effects =
-  case effects of
-    [] -> return ()
-    first : rest ->
-      -- TODO: catch errors
-      runEffect runtime first >> runEffects runtime rest
-
-
-runEffect :: Runtime -> Core.Effect -> IO ()
-runEffect runtime effect =
-  case effect of
-    Core.ConversationEffect contactInfo eff ->
-      case eff of
-        Conversation.GetBalance onBalance -> do
-          result <-
-            Splitwise.getBalance
-              (splitwise runtime)
-              (Core.ownRole contactInfo)
-          Queue.enqueue
-            (queue runtime)
-            (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))

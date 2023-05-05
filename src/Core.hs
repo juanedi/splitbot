@@ -5,7 +5,6 @@ module Core (
   ContactInfo (..),
   Model,
   Event (..),
-  Effect (..),
 ) where
 
 import Control.Monad (when)
@@ -55,14 +54,9 @@ data UserId
   deriving (Show)
 
 
-data Event
+newtype Event
   = MessageReceived Message
-  | ConversationEvent UserId Conversation.Event
   deriving (Show)
-
-
-data Effect
-  = ConversationEffect ContactInfo Conversation.Effect
 
 
 data ContactInfo = ContactInfo
@@ -105,59 +99,12 @@ update ::
   LocalStore.Handler ->
   Event ->
   Model ->
-  IO (Model, [Effect])
+  IO Model
 update telegram splitwise localStore event model =
   case event of
     MessageReceived msg ->
       --
       updateFromMessage telegram splitwise localStore msg model
-    ConversationEvent userId conversationEvent -> do
-      updatedUser <-
-        relayEvent
-          telegram
-          userId
-          (getUser userId model)
-          (getPeerChatId userId model)
-          conversationEvent
-      pure (updateUser userId updatedUser model, [])
-
-
-relayEvent ::
-  Telegram.Handler ->
-  UserId ->
-  User ->
-  Maybe ChatId ->
-  Conversation.Event ->
-  IO User
-relayEvent telegram userId currentUser peerChatId event =
-  case conversationState currentUser of
-    Uninitialized -> pure currentUser
-    Inactive _ -> pure currentUser
-    Active chatId conversation -> do
-      updatedConversation <-
-        Conversation.update
-          telegram
-          chatId
-          peerChatId
-          event
-          conversation
-
-      let contactInfo =
-            ( ContactInfo
-                { ownUserId = userId
-                , ownChatId = chatId
-                , ownRole = splitwiseRole currentUser
-                , peerChatId = peerChatId
-                }
-            )
-      pure
-        ( currentUser
-            { conversationState =
-                case updatedConversation of
-                  Nothing -> Inactive chatId
-                  Just conv -> Active chatId conv
-            }
-        )
 
 
 readChatId :: LocalStore.Handler -> UserId -> IO (Maybe ChatId)
@@ -193,13 +140,13 @@ updateFromMessage ::
   LocalStore.Handler ->
   Message ->
   Model ->
-  IO (Model, [Effect])
+  IO Model
 updateFromMessage telegram splitwise localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
         Nothing -> do
           putStrLn $ "Ignoring message from unknown user: " ++ show username
-          pure (model, [])
+          pure model
         Just userId -> do
           let currentUser = getUser userId model
 
@@ -214,13 +161,13 @@ updateFromMessage telegram splitwise localStore msg model =
                     }
                 )
 
-          (updatedCurrentUser, effects) <-
+          updatedCurrentUser <-
             answerMessage telegram splitwise msg contactInfo currentUser
 
           when (shouldStoreChatId chatId currentUser) $
             writeChatId localStore userId chatId
 
-          pure (updateUser userId updatedCurrentUser model, effects)
+          pure (updateUser userId updatedCurrentUser model)
 
 
 answerMessage ::
@@ -229,25 +176,21 @@ answerMessage ::
   Message ->
   ContactInfo ->
   User ->
-  IO (User, [Effect])
+  IO User
 answerMessage telegram splitwise msg contactInfo currentUser = do
   let txt = Message.text msg
-  (maybeConversation, effects) <-
-    -- TODO: simplify once we get rid of effects in `messageReceived``
+  maybeConversation <-
     case conversationState currentUser of
       Uninitialized ->
-        fmap
-          (\c -> (Just c, []))
-          (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
+        Just <$> Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser)
       Inactive _ ->
-        fmap
-          (\c -> (Just c, []))
-          (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
+        Just <$> Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser)
       Active _ conversation ->
         Conversation.messageReceived
           telegram
           splitwise
           (ownChatId contactInfo)
+          (peerChatId contactInfo)
           (ownRole contactInfo)
           txt
           conversation
@@ -259,7 +202,6 @@ answerMessage telegram splitwise msg contactInfo currentUser = do
               Nothing -> Inactive userChatId
               Just c -> Active userChatId c
         }
-    , fmap (ConversationEffect contactInfo) effects
     )
 
 
