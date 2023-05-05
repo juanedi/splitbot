@@ -113,6 +113,7 @@ update telegram localStore event model =
     ConversationEvent userId conversationEvent -> do
       (updatedUser, effects) <-
         relayEvent
+          telegram
           userId
           (getUser userId model)
           (getPeerChatId userId model)
@@ -120,13 +121,24 @@ update telegram localStore event model =
       pure (updateUser userId updatedUser model, effects)
 
 
-relayEvent :: UserId -> User -> Maybe ChatId -> Conversation.Event -> IO (User, [Effect])
-relayEvent userId currentUser peerChatId event =
+relayEvent ::
+  Telegram.Handler ->
+  UserId ->
+  User ->
+  Maybe ChatId ->
+  Conversation.Event ->
+  IO (User, [Effect])
+relayEvent telegram userId currentUser peerChatId event =
   case conversationState currentUser of
     Uninitialized -> pure (currentUser, [])
     Inactive _ -> pure (currentUser, [])
     Active chatId conversation -> do
-      (updatedConversation, conversationEffects) <- Conversation.update event conversation
+      (updatedConversation, conversationEffects) <-
+        Conversation.update
+          telegram
+          chatId
+          event
+          conversation
 
       let contactInfo =
             ( ContactInfo

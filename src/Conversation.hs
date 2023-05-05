@@ -34,8 +34,7 @@ data Event
 
 
 data Effect
-  = Answer Reply
-  | NotifyPeer Reply
+  = NotifyPeer Reply
   | Store (Splitwise.ExpenseOutcome -> Event) Expense
   | GetBalance (Maybe Balance -> Event)
 
@@ -53,8 +52,13 @@ start telegram chatId message preset =
       pure (GatheringInfo engineState)
 
 
-update :: Event -> Conversation -> IO (Maybe Conversation, [Effect])
-update event conversation =
+update ::
+  Telegram.Handler ->
+  ChatId ->
+  Event ->
+  Conversation ->
+  IO (Maybe Conversation, [Effect])
+update telegram chatId event conversation =
   case (conversation, event) of
     (SavingExpense expense, ExpenseCreationDone outcome) ->
       case outcome of
@@ -63,13 +67,11 @@ update event conversation =
         Splitwise.Failed ->
           -- TODO: handle this error: maybe ask if we want to retry?
           pure (Just conversation, [])
-    (FetchingBalance expense, OnBalance maybeBalance) ->
+    (FetchingBalance expense, OnBalance maybeBalance) -> do
+      Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
       pure
         ( Nothing
-        ,
-          [ Answer (ownNotification maybeBalance)
-          , NotifyPeer (peerNotification expense maybeBalance)
-          ]
+        , [NotifyPeer (peerNotification expense maybeBalance)]
         )
     (_, _) -> pure (Just conversation, [])
 

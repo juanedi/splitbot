@@ -112,8 +112,6 @@ runEffect runtime effect =
   case effect of
     Core.ConversationEffect contactInfo eff ->
       case eff of
-        Conversation.Answer reply ->
-          sendMessage runtime (Core.ownChatId contactInfo) reply
         Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
           Nothing ->
             -- this means that we don't know the peer's chat id because they
