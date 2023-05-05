@@ -116,16 +116,6 @@ runEffect runtime effect =
   case effect of
     Core.ConversationEffect contactInfo eff ->
       case eff of
-        Conversation.Store onOutcome expense -> do
-          outcome <-
-            Splitwise.createExpense
-              (splitwise runtime)
-              (Core.ownRole contactInfo)
-              expense
-          Queue.enqueue
-            (queue runtime)
-            ( Core.ConversationEvent (Core.ownUserId contactInfo) (onOutcome outcome)
-            )
         Conversation.GetBalance onBalance -> do
           result <-
             Splitwise.getBalance

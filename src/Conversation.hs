@@ -31,9 +31,8 @@ newtype Event
   deriving (Show)
 
 
-data Effect
-  = Store (Splitwise.ExpenseOutcome -> Event) Expense
-  | GetBalance (Maybe Balance -> Event)
+newtype Effect
+  = GetBalance (Maybe Balance -> Event)
 
 
 start ::
