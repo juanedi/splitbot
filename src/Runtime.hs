@@ -91,7 +91,13 @@ onMessage runtime message =
 loop :: Runtime -> IO ()
 loop runtime = do
   event <- Queue.dequeue (queue runtime)
-  (updatedCore, effects) <- Core.update (telegram runtime) (localStore runtime) event (core runtime)
+  (updatedCore, effects) <-
+    Core.update
+      (telegram runtime)
+      (splitwise runtime)
+      (localStore runtime)
+      event
+      (core runtime)
   runEffects runtime effects
   loop (runtime {core = updatedCore})
 
@@ -128,15 +134,3 @@ runEffect runtime effect =
           Queue.enqueue
             (queue runtime)
             (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
-
--- sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
--- sendMessage runtime chatId reply = do
---   result <-
---     Telegram.sendMessage
---       (telegram runtime)
---       chatId
---       reply
---   if result
---     then return ()
---     else -- TODO: retry once and only log after second failure
---       putStrLn "ERROR! Could not send message via telegram API"

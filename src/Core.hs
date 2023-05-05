@@ -101,15 +101,16 @@ initialize localStore settings = do
 
 update ::
   Telegram.Handler ->
+  Splitwise.Handler ->
   LocalStore.Handler ->
   Event ->
   Model ->
   IO (Model, [Effect])
-update telegram localStore event model =
+update telegram splitwise localStore event model =
   case event of
     MessageReceived msg ->
       --
-      updateFromMessage telegram localStore msg model
+      updateFromMessage telegram splitwise localStore msg model
     ConversationEvent userId conversationEvent -> do
       (updatedUser, effects) <-
         relayEvent
@@ -189,11 +190,12 @@ chatIdPath userId =
 
 updateFromMessage ::
   Telegram.Handler ->
+  Splitwise.Handler ->
   LocalStore.Handler ->
   Message ->
   Model ->
   IO (Model, [Effect])
-updateFromMessage telegram localStore msg model =
+updateFromMessage telegram splitwise localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
         Nothing -> do
@@ -214,7 +216,7 @@ updateFromMessage telegram localStore msg model =
                 )
 
           (updatedCurrentUser, effects) <-
-            answerMessage telegram msg contactInfo currentUser
+            answerMessage telegram splitwise msg contactInfo currentUser
 
           when (shouldStoreChatId chatId currentUser) $
             writeChatId localStore userId chatId
@@ -222,8 +224,14 @@ updateFromMessage telegram localStore msg model =
           pure (updateUser userId updatedCurrentUser model, effects)
 
 
-answerMessage :: Telegram.Handler -> Message -> ContactInfo -> User -> IO (User, [Effect])
-answerMessage telegram msg contactInfo currentUser = do
+answerMessage ::
+  Telegram.Handler ->
+  Splitwise.Handler ->
+  Message ->
+  ContactInfo ->
+  User ->
+  IO (User, [Effect])
+answerMessage telegram splitwise msg contactInfo currentUser = do
   let txt = Message.text msg
   (maybeConversation, effects) <-
     -- TODO: simplify once we get rid of effects in `messageReceived``
@@ -236,7 +244,14 @@ answerMessage telegram msg contactInfo currentUser = do
         fmap
           (\c -> (Just c, []))
           (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
-      Active _ conversation -> Conversation.messageReceived telegram (ownChatId contactInfo) txt conversation
+      Active _ conversation ->
+        Conversation.messageReceived
+          telegram
+          splitwise
+          (ownChatId contactInfo)
+          (ownRole contactInfo)
+          txt
+          conversation
   let userChatId = Message.chatId msg
   pure
     ( currentUser

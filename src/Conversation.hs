@@ -23,13 +23,11 @@ import qualified Telegram.Reply as Reply
 
 data Conversation
   = GatheringInfo Engine.State
-  | SavingExpense Expense
   | FetchingBalance Expense
 
 
-data Event
-  = ExpenseCreationDone Splitwise.ExpenseOutcome
-  | OnBalance (Maybe Balance)
+newtype Event
+  = OnBalance (Maybe Balance)
   deriving (Show)
 
 
@@ -60,13 +58,6 @@ update ::
   IO (Maybe Conversation, [Effect])
 update telegram chatId maybePeerChatId event conversation =
   case (conversation, event) of
-    (SavingExpense expense, ExpenseCreationDone outcome) ->
-      case outcome of
-        Splitwise.Created ->
-          pure (Just (FetchingBalance expense), [GetBalance OnBalance])
-        Splitwise.Failed ->
-          -- TODO: handle this error: maybe ask if we want to retry?
-          pure (Just conversation, [])
     (FetchingBalance expense, OnBalance maybeBalance) -> do
       Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
       case maybePeerChatId of
@@ -82,11 +73,13 @@ update telegram chatId maybePeerChatId event conversation =
 
 messageReceived ::
   Telegram.Handler ->
+  Splitwise.Handler ->
   ChatId ->
+  Splitwise.Role ->
   String ->
   Conversation ->
   IO (Maybe Conversation, [Effect])
-messageReceived telegram chatId userMessage conversation =
+messageReceived telegram splitwise chatId ownRole userMessage conversation =
   case conversation of
     GatheringInfo engineState ->
       case Engine.update userMessage engineState of
@@ -98,13 +91,13 @@ messageReceived telegram chatId userMessage conversation =
           pure (Nothing, [])
         Engine.Done expense -> do
           Telegram.sendMessage telegram chatId holdOn
-          pure
-            ( Just (SavingExpense expense)
-            , [Store ExpenseCreationDone expense]
-            )
-    SavingExpense _ -> do
-      Telegram.sendMessage telegram chatId holdOn
-      pure (Just conversation, [])
+          outcome <- Splitwise.createExpense splitwise ownRole expense
+          case outcome of
+            Splitwise.Created ->
+              pure (Just (FetchingBalance expense), [GetBalance OnBalance])
+            Splitwise.Failed ->
+              -- TODO: handle this error: maybe ask if we want to retry?
+              pure (Just conversation, [])
     FetchingBalance _ -> do
       Telegram.sendMessage telegram chatId holdOn
       pure (Just conversation, [])
