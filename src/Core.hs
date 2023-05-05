@@ -137,6 +137,7 @@ relayEvent telegram userId currentUser peerChatId event =
         Conversation.update
           telegram
           chatId
+          peerChatId
           event
           conversation
 

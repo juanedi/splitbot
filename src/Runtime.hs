@@ -12,10 +12,8 @@ import Settings (Settings)
 import qualified Settings
 import qualified Splitwise
 import qualified Telegram
-import qualified Telegram.Api
 import qualified Telegram.LongPolling
 import Telegram.Message (Message)
-import qualified Telegram.Reply
 import qualified Telegram.WebhookServer
 
 
@@ -112,12 +110,6 @@ runEffect runtime effect =
   case effect of
     Core.ConversationEffect contactInfo eff ->
       case eff of
-        Conversation.NotifyPeer reply -> case Core.peerChatId contactInfo of
-          Nothing ->
-            -- this means that we don't know the peer's chat id because they
-            -- haven't contacted us yet.
-            return ()
-          Just peerChatId -> sendMessage runtime peerChatId reply
         Conversation.Store onOutcome expense -> do
           outcome <-
             Splitwise.createExpense
@@ -137,15 +129,14 @@ runEffect runtime effect =
             (queue runtime)
             (Core.ConversationEvent (Core.ownUserId contactInfo) (onBalance result))
 
-
-sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
-sendMessage runtime chatId reply = do
-  result <-
-    Telegram.sendMessage
-      (telegram runtime)
-      chatId
-      reply
-  if result
-    then return ()
-    else -- TODO: retry once and only log after second failure
-      putStrLn "ERROR! Could not send message via telegram API"
+-- sendMessage :: Runtime -> Telegram.Api.ChatId -> Telegram.Reply.Reply -> IO ()
+-- sendMessage runtime chatId reply = do
+--   result <-
+--     Telegram.sendMessage
+--       (telegram runtime)
+--       chatId
+--       reply
+--   if result
+--     then return ()
+--     else -- TODO: retry once and only log after second failure
+--       putStrLn "ERROR! Could not send message via telegram API"

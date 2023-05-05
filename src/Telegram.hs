@@ -30,5 +30,10 @@ getUpdates :: Handler -> Maybe Integer -> IO GetUpdatesResult
 getUpdates (Handler http (Token token)) = Api.getUpdates token http
 
 
-sendMessage :: Handler -> ChatId -> Reply -> IO Bool
-sendMessage (Handler http (Token token)) = Api.sendMessage token http
+sendMessage :: Handler -> ChatId -> Reply -> IO ()
+sendMessage (Handler http (Token token)) chatId reply = do
+  result <- Api.sendMessage token http chatId reply
+  if result
+    then return ()
+    else -- TODO: retry once and only log after second failure
+      putStrLn "ERROR! Could not send message via telegram API"

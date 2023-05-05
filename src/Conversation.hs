@@ -34,8 +34,7 @@ data Event
 
 
 data Effect
-  = NotifyPeer Reply
-  | Store (Splitwise.ExpenseOutcome -> Event) Expense
+  = Store (Splitwise.ExpenseOutcome -> Event) Expense
   | GetBalance (Maybe Balance -> Event)
 
 
@@ -55,10 +54,11 @@ start telegram chatId message preset =
 update ::
   Telegram.Handler ->
   ChatId ->
+  Maybe ChatId ->
   Event ->
   Conversation ->
   IO (Maybe Conversation, [Effect])
-update telegram chatId event conversation =
+update telegram chatId maybePeerChatId event conversation =
   case (conversation, event) of
     (SavingExpense expense, ExpenseCreationDone outcome) ->
       case outcome of
@@ -69,11 +69,15 @@ update telegram chatId event conversation =
           pure (Just conversation, [])
     (FetchingBalance expense, OnBalance maybeBalance) -> do
       Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
-      pure
-        ( Nothing
-        , [NotifyPeer (peerNotification expense maybeBalance)]
-        )
-    (_, _) -> pure (Just conversation, [])
+      case maybePeerChatId of
+        Nothing ->
+          pure ()
+        Just peerChatId ->
+          Telegram.sendMessage telegram peerChatId (peerNotification expense maybeBalance)
+
+      pure (Nothing, [])
+    (_, _) ->
+      pure (Just conversation, [])
 
 
 messageReceived ::
