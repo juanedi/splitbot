@@ -28,11 +28,10 @@ start ::
   String ->
   Split ->
   IO Conversation
-start telegram chatId message preset =
-  case Engine.start message preset of
-    (engineState, reply) -> do
-      Telegram.sendMessage telegram chatId reply
-      pure (Conversation engineState)
+start telegram chatId message preset = do
+  (engineState, reply) <- Engine.start message preset
+  Telegram.sendMessage telegram chatId reply
+  pure (Conversation engineState)
 
 
 messageReceived ::
@@ -44,8 +43,9 @@ messageReceived ::
   String ->
   Conversation ->
   IO (Maybe Conversation)
-messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) =
-  case Engine.update userMessage engineState of
+messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) = do
+  outcome <- Engine.update userMessage engineState
+  case outcome of
     Engine.Continue engineState' reply -> do
       Telegram.sendMessage telegram chatId reply
       pure (Just (Conversation engineState'))
