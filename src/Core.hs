@@ -2,7 +2,6 @@ module Core (
   initialize,
   update,
   UserId (..),
-  ContactInfo (..),
   Model,
   Event (..),
 ) where
@@ -57,14 +56,6 @@ data UserId
 newtype Event
   = MessageReceived Message
   deriving (Show)
-
-
-data ContactInfo = ContactInfo
-  { ownUserId :: UserId
-  , ownChatId :: ChatId
-  , ownRole :: Splitwise.Role
-  , peerChatId :: Maybe ChatId
-  }
 
 
 initialize :: LocalStore.Handler -> Settings -> IO Model
@@ -149,20 +140,15 @@ updateFromMessage telegram splitwise localStore msg model =
           pure model
         Just userId -> do
           let currentUser = getUser userId model
-
               chatId = Message.chatId msg
 
-              contactInfo =
-                ( ContactInfo
-                    { ownUserId = userId
-                    , ownChatId = chatId
-                    , ownRole = splitwiseRole currentUser
-                    , peerChatId = getPeerChatId userId model
-                    }
-                )
-
           updatedCurrentUser <-
-            answerMessage telegram splitwise msg contactInfo currentUser
+            answerMessage
+              telegram
+              splitwise
+              (getPeerChatId userId model)
+              msg
+              currentUser
 
           when (shouldStoreChatId chatId currentUser) $
             writeChatId localStore userId chatId
@@ -173,34 +159,44 @@ updateFromMessage telegram splitwise localStore msg model =
 answerMessage ::
   Telegram.Handler ->
   Splitwise.Handler ->
+  Maybe ChatId ->
   Message ->
-  ContactInfo ->
   User ->
   IO User
-answerMessage telegram splitwise msg contactInfo currentUser = do
-  let txt = Message.text msg
+answerMessage telegram splitwise peerChatId msg currentUser = do
+  let ownChatId = Message.chatId msg
+      txt = Message.text msg
   maybeConversation <-
     case conversationState currentUser of
       Uninitialized ->
-        Just <$> Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser)
+        Just
+          <$> Conversation.start
+            telegram
+            ownChatId
+            txt
+            (preset currentUser)
       Inactive _ ->
-        Just <$> Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser)
+        Just
+          <$> Conversation.start
+            telegram
+            ownChatId
+            txt
+            (preset currentUser)
       Active _ conversation ->
         Conversation.messageReceived
           telegram
           splitwise
-          (ownChatId contactInfo)
-          (peerChatId contactInfo)
-          (ownRole contactInfo)
+          ownChatId
+          peerChatId
+          (splitwiseRole currentUser)
           txt
           conversation
-  let userChatId = Message.chatId msg
   pure
     ( currentUser
         { conversationState =
             case maybeConversation of
-              Nothing -> Inactive userChatId
-              Just c -> Active userChatId c
+              Nothing -> Inactive ownChatId
+              Just c -> Active ownChatId c
         }
     )
 
