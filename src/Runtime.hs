@@ -110,8 +110,6 @@ runEffects runtime effects =
 runEffect :: Runtime -> Core.Effect -> IO ()
 runEffect runtime effect =
   case effect of
-    Core.LogError msg ->
-      putStrLn msg
     Core.ConversationEffect contactInfo eff ->
       case eff of
         Conversation.Answer reply ->

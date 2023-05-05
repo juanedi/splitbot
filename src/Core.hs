@@ -61,8 +61,7 @@ data Event
 
 
 data Effect
-  = LogError String
-  | ConversationEffect ContactInfo Conversation.Effect
+  = ConversationEffect ContactInfo Conversation.Effect
 
 
 data ContactInfo = ContactInfo
@@ -173,11 +172,9 @@ updateFromMessage :: LocalStore.Handler -> Message -> Model -> IO (Model, [Effec
 updateFromMessage localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
-        Nothing ->
-          pure
-            ( model
-            , [LogError $ "Ignoring message from unknown user: " ++ show username]
-            )
+        Nothing -> do
+          putStrLn $ "Ignoring message from unknown user: " ++ show username
+          pure (model, [])
         Just userId -> do
           let currentUser = getUser userId model
 
