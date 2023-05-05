@@ -38,52 +38,56 @@ data Effect
   | GetBalance (Maybe Balance -> Event)
 
 
-start :: String -> Split -> (Maybe Conversation, [Effect])
+start :: String -> Split -> IO (Maybe Conversation, [Effect])
 start message preset =
   case Engine.start message preset of
     (engineState, reply) ->
-      (Just (GatheringInfo engineState), [Answer reply])
+      pure (Just (GatheringInfo engineState), [Answer reply])
 
 
-update :: Event -> Conversation -> (Maybe Conversation, [Effect])
+update :: Event -> Conversation -> IO (Maybe Conversation, [Effect])
 update event conversation =
   case (conversation, event) of
     (SavingExpense expense, ExpenseCreationDone outcome) ->
       case outcome of
         Splitwise.Created ->
-          (Just (FetchingBalance expense), [GetBalance OnBalance])
+          pure (Just (FetchingBalance expense), [GetBalance OnBalance])
         Splitwise.Failed ->
           -- TODO: handle this error: maybe ask if we want to retry?
-          (Just conversation, [])
+          pure (Just conversation, [])
     (FetchingBalance expense, OnBalance maybeBalance) ->
-      ( Nothing
-      ,
-        [ Answer (ownNotification maybeBalance)
-        , NotifyPeer (peerNotification expense maybeBalance)
-        ]
-      )
-    (_, _) -> (Just conversation, [])
+      pure
+        ( Nothing
+        ,
+          [ Answer (ownNotification maybeBalance)
+          , NotifyPeer (peerNotification expense maybeBalance)
+          ]
+        )
+    (_, _) -> pure (Just conversation, [])
 
 
-messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
+messageReceived :: String -> Conversation -> IO (Maybe Conversation, [Effect])
 messageReceived userMessage conversation =
   case conversation of
     GatheringInfo engineState ->
       case Engine.update userMessage engineState of
         Engine.Continue engineState' reply ->
-          ( Just (GatheringInfo engineState')
-          , [Answer reply]
-          )
+          pure
+            ( Just (GatheringInfo engineState')
+            , [Answer reply]
+            )
         Engine.Terminate reply ->
-          ( Nothing
-          , [Answer reply]
-          )
+          pure
+            ( Nothing
+            , [Answer reply]
+            )
         Engine.Done expense ->
-          ( Just (SavingExpense expense)
-          , [Answer holdOn, Store ExpenseCreationDone expense]
-          )
-    SavingExpense _ -> (Just conversation, [Answer holdOn])
-    FetchingBalance _ -> (Just conversation, [Answer holdOn])
+          pure
+            ( Just (SavingExpense expense)
+            , [Answer holdOn, Store ExpenseCreationDone expense]
+            )
+    SavingExpense _ -> pure (Just conversation, [Answer holdOn])
+    FetchingBalance _ -> pure (Just conversation, [Answer holdOn])
 
 
 holdOn :: Reply

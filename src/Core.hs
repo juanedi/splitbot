@@ -104,26 +104,25 @@ update localStore event model =
     MessageReceived msg ->
       --
       updateFromMessage localStore msg model
-    ConversationEvent userId conversationEvent ->
-      let (updatedUser, effects) =
-            relayEvent
-              userId
-              (getUser userId model)
-              (getPeerChatId userId model)
-              conversationEvent
-       in pure (updateUser userId updatedUser model, effects)
+    ConversationEvent userId conversationEvent -> do
+      (updatedUser, effects) <-
+        relayEvent
+          userId
+          (getUser userId model)
+          (getPeerChatId userId model)
+          conversationEvent
+      pure (updateUser userId updatedUser model, effects)
 
 
-relayEvent :: UserId -> User -> Maybe ChatId -> Conversation.Event -> (User, [Effect])
+relayEvent :: UserId -> User -> Maybe ChatId -> Conversation.Event -> IO (User, [Effect])
 relayEvent userId currentUser peerChatId event =
   case conversationState currentUser of
-    Uninitialized -> (currentUser, [])
-    Inactive _ -> (currentUser, [])
-    Active chatId conversation ->
-      let (updatedConversation, conversationEffects) =
-            Conversation.update event conversation
+    Uninitialized -> pure (currentUser, [])
+    Inactive _ -> pure (currentUser, [])
+    Active chatId conversation -> do
+      (updatedConversation, conversationEffects) <- Conversation.update event conversation
 
-          contactInfo =
+      let contactInfo =
             ( ContactInfo
                 { ownUserId = userId
                 , ownChatId = chatId
@@ -131,14 +130,15 @@ relayEvent userId currentUser peerChatId event =
                 , peerChatId = peerChatId
                 }
             )
-       in ( currentUser
-              { conversationState =
-                  case updatedConversation of
-                    Nothing -> Inactive chatId
-                    Just conv -> Active chatId conv
-              }
-          , fmap (ConversationEffect contactInfo) conversationEffects
-          )
+      pure
+        ( currentUser
+            { conversationState =
+                case updatedConversation of
+                  Nothing -> Inactive chatId
+                  Just conv -> Active chatId conv
+            }
+        , fmap (ConversationEffect contactInfo) conversationEffects
+        )
 
 
 readChatId :: LocalStore.Handler -> UserId -> IO (Maybe ChatId)
@@ -189,8 +189,8 @@ updateFromMessage localStore msg model =
                     }
                 )
 
-              (updatedCurrentUser, effects) =
-                answerMessage msg contactInfo currentUser
+          (updatedCurrentUser, effects) <-
+            answerMessage msg contactInfo currentUser
 
           when (shouldStoreChatId chatId currentUser) $
             writeChatId localStore userId chatId
@@ -198,23 +198,24 @@ updateFromMessage localStore msg model =
           pure (updateUser userId updatedCurrentUser model, effects)
 
 
-answerMessage :: Message -> ContactInfo -> User -> (User, [Effect])
-answerMessage msg contactInfo currentUser =
+answerMessage :: Message -> ContactInfo -> User -> IO (User, [Effect])
+answerMessage msg contactInfo currentUser = do
   let txt = Message.text msg
-      (maybeConversation, effects) =
-        case conversationState currentUser of
-          Uninitialized -> Conversation.start txt (preset currentUser)
-          Inactive _ -> Conversation.start txt (preset currentUser)
-          Active _ conversation -> Conversation.messageReceived txt conversation
-      userChatId = Message.chatId msg
-   in ( currentUser
-          { conversationState =
-              case maybeConversation of
-                Nothing -> Inactive userChatId
-                Just c -> Active userChatId c
-          }
-      , fmap (ConversationEffect contactInfo) effects
-      )
+  (maybeConversation, effects) <-
+    case conversationState currentUser of
+      Uninitialized -> Conversation.start txt (preset currentUser)
+      Inactive _ -> Conversation.start txt (preset currentUser)
+      Active _ conversation -> Conversation.messageReceived txt conversation
+  let userChatId = Message.chatId msg
+  pure
+    ( currentUser
+        { conversationState =
+            case maybeConversation of
+              Nothing -> Inactive userChatId
+              Just c -> Active userChatId c
+        }
+    , fmap (ConversationEffect contactInfo) effects
+    )
 
 
 shouldStoreChatId :: ChatId -> User -> Bool
