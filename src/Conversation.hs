@@ -74,28 +74,34 @@ update event conversation =
     (_, _) -> pure (Just conversation, [])
 
 
-messageReceived :: String -> Conversation -> IO (Maybe Conversation, [Effect])
-messageReceived userMessage conversation =
+messageReceived ::
+  Telegram.Handler ->
+  ChatId ->
+  String ->
+  Conversation ->
+  IO (Maybe Conversation, [Effect])
+messageReceived telegram chatId userMessage conversation =
   case conversation of
     GatheringInfo engineState ->
       case Engine.update userMessage engineState of
-        Engine.Continue engineState' reply ->
-          pure
-            ( Just (GatheringInfo engineState')
-            , [Answer reply]
-            )
-        Engine.Terminate reply ->
-          pure
-            ( Nothing
-            , [Answer reply]
-            )
-        Engine.Done expense ->
+        Engine.Continue engineState' reply -> do
+          Telegram.sendMessage telegram chatId reply
+          pure (Just (GatheringInfo engineState'), [])
+        Engine.Terminate reply -> do
+          Telegram.sendMessage telegram chatId reply
+          pure (Nothing, [])
+        Engine.Done expense -> do
+          Telegram.sendMessage telegram chatId holdOn
           pure
             ( Just (SavingExpense expense)
-            , [Answer holdOn, Store ExpenseCreationDone expense]
+            , [Store ExpenseCreationDone expense]
             )
-    SavingExpense _ -> pure (Just conversation, [Answer holdOn])
-    FetchingBalance _ -> pure (Just conversation, [Answer holdOn])
+    SavingExpense _ -> do
+      Telegram.sendMessage telegram chatId holdOn
+      pure (Just conversation, [])
+    FetchingBalance _ -> do
+      Telegram.sendMessage telegram chatId holdOn
+      pure (Just conversation, [])
 
 
 holdOn :: Reply

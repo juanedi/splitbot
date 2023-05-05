@@ -223,7 +223,7 @@ answerMessage telegram msg contactInfo currentUser = do
         fmap
           (\c -> (Just c, []))
           (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
-      Active _ conversation -> Conversation.messageReceived txt conversation
+      Active _ conversation -> Conversation.messageReceived telegram (ownChatId contactInfo) txt conversation
   let userChatId = Message.chatId msg
   pure
     ( currentUser
