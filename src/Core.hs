@@ -3,7 +3,6 @@ module Core (
   update,
   UserId (..),
   Model,
-  Event (..),
 ) where
 
 import Control.Monad (when)
@@ -53,11 +52,6 @@ data UserId
   deriving (Show)
 
 
-newtype Event
-  = MessageReceived Message
-  deriving (Show)
-
-
 initialize :: LocalStore.Handler -> Settings -> IO Model
 initialize localStore settings = do
   let presetA = Settings.userASplitwisePreset settings
@@ -88,14 +82,31 @@ update ::
   Telegram.Handler ->
   Splitwise.Handler ->
   LocalStore.Handler ->
-  Event ->
+  Message ->
   Model ->
   IO Model
-update telegram splitwise localStore event model =
-  case event of
-    MessageReceived msg ->
-      --
-      updateFromMessage telegram splitwise localStore msg model
+update telegram splitwise localStore msg model =
+  let username = Message.username msg
+   in case matchUserId model username of
+        Nothing -> do
+          putStrLn $ "Ignoring message from unknown user: " ++ show username
+          pure model
+        Just userId -> do
+          let currentUser = getUser userId model
+              chatId = Message.chatId msg
+
+          updatedCurrentUser <-
+            answerMessage
+              telegram
+              splitwise
+              (getPeerChatId userId model)
+              msg
+              currentUser
+
+          when (shouldStoreChatId chatId currentUser) $
+            writeChatId localStore userId chatId
+
+          pure (updateUser userId updatedCurrentUser model)
 
 
 readChatId :: LocalStore.Handler -> UserId -> IO (Maybe ChatId)
@@ -123,37 +134,6 @@ chatIdPath userId =
         Core.UserB -> "b"
     , "chatId"
     ]
-
-
-updateFromMessage ::
-  Telegram.Handler ->
-  Splitwise.Handler ->
-  LocalStore.Handler ->
-  Message ->
-  Model ->
-  IO Model
-updateFromMessage telegram splitwise localStore msg model =
-  let username = Message.username msg
-   in case matchUserId model username of
-        Nothing -> do
-          putStrLn $ "Ignoring message from unknown user: " ++ show username
-          pure model
-        Just userId -> do
-          let currentUser = getUser userId model
-              chatId = Message.chatId msg
-
-          updatedCurrentUser <-
-            answerMessage
-              telegram
-              splitwise
-              (getPeerChatId userId model)
-              msg
-              currentUser
-
-          when (shouldStoreChatId chatId currentUser) $
-            writeChatId localStore userId chatId
-
-          pure (updateUser userId updatedCurrentUser model)
 
 
 answerMessage ::

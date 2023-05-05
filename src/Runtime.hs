@@ -21,7 +21,7 @@ data Runtime = Runtime
   { telegram :: Telegram.Handler
   , splitwise :: Splitwise.Handler
   , localStore :: LocalStore.Handler
-  , queue :: Queue Core.Event
+  , queue :: Queue Message
   , core :: Core.Model
   }
 
@@ -54,7 +54,7 @@ startServer port settings = do
     concurrently
       (loop runtime)
       ( Telegram.WebhookServer.run
-          (Runtime.onMessage runtime)
+          (onMessage runtime)
           (Settings.telegramToken settings)
           port
       )
@@ -84,8 +84,8 @@ init settings = do
 
 
 onMessage :: Runtime -> Message -> IO ()
-onMessage runtime message =
-  Queue.enqueue (queue runtime) (Core.MessageReceived message)
+onMessage runtime =
+  Queue.enqueue (queue runtime)
 
 
 loop :: Runtime -> IO ()
