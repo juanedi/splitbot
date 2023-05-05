@@ -1,11 +1,8 @@
 module Conversation (
   Conversation,
-  Event,
-  Effect (..),
   Expense (..),
   messageReceived,
   Conversation.start,
-  Conversation.update,
 ) where
 
 import Conversation.Engine as Engine
@@ -15,75 +12,71 @@ import Data.Maybe (fromMaybe)
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
+import qualified Telegram
+import Telegram.Api (ChatId)
 import Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 
-data Conversation
-  = GatheringInfo Engine.State
-  | SavingExpense Expense
-  | FetchingBalance Expense
+newtype Conversation
+  = Conversation Engine.State
 
 
-data Event
-  = ExpenseCreationDone Splitwise.ExpenseOutcome
-  | OnBalance (Maybe Balance)
-  deriving (Show)
-
-
-data Effect
-  = Answer Reply
-  | NotifyPeer Reply
-  | Store (Splitwise.ExpenseOutcome -> Event) Expense
-  | GetBalance (Maybe Balance -> Event)
-
-
-start :: String -> Split -> (Maybe Conversation, [Effect])
-start message preset =
+start ::
+  Telegram.Handler ->
+  ChatId ->
+  String ->
+  Split ->
+  IO Conversation
+start telegram chatId message preset =
   case Engine.start message preset of
-    (engineState, reply) ->
-      (Just (GatheringInfo engineState), [Answer reply])
+    (engineState, reply) -> do
+      Telegram.sendMessage telegram chatId reply
+      pure (Conversation engineState)
 
 
-update :: Event -> Conversation -> (Maybe Conversation, [Effect])
-update event conversation =
-  case (conversation, event) of
-    (SavingExpense expense, ExpenseCreationDone outcome) ->
+messageReceived ::
+  Telegram.Handler ->
+  Splitwise.Handler ->
+  ChatId ->
+  Maybe ChatId ->
+  Splitwise.Role ->
+  String ->
+  Conversation ->
+  IO (Maybe Conversation)
+messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) =
+  case Engine.update userMessage engineState of
+    Engine.Continue engineState' reply -> do
+      Telegram.sendMessage telegram chatId reply
+      pure (Just (Conversation engineState'))
+    Engine.Terminate reply -> do
+      Telegram.sendMessage telegram chatId reply
+      pure Nothing
+    Engine.Done expense -> do
+      Telegram.sendMessage telegram chatId holdOn
+      outcome <- Splitwise.createExpense splitwise ownRole expense
       case outcome of
-        Splitwise.Created ->
-          (Just (FetchingBalance expense), [GetBalance OnBalance])
+        Splitwise.Created -> do
+          maybeBalance <- Splitwise.getBalance splitwise ownRole
+          Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
+          notifyPeer
+            telegram
+            maybePeerChatId
+            (peerNotification expense maybeBalance)
+
+          pure Nothing
         Splitwise.Failed ->
           -- TODO: handle this error: maybe ask if we want to retry?
-          (Just conversation, [])
-    (FetchingBalance expense, OnBalance maybeBalance) ->
-      ( Nothing
-      ,
-        [ Answer (ownNotification maybeBalance)
-        , NotifyPeer (peerNotification expense maybeBalance)
-        ]
-      )
-    (_, _) -> (Just conversation, [])
+          pure (Just (Conversation engineState))
 
 
-messageReceived :: String -> Conversation -> (Maybe Conversation, [Effect])
-messageReceived userMessage conversation =
-  case conversation of
-    GatheringInfo engineState ->
-      case Engine.update userMessage engineState of
-        Engine.Continue engineState' reply ->
-          ( Just (GatheringInfo engineState')
-          , [Answer reply]
-          )
-        Engine.Terminate reply ->
-          ( Nothing
-          , [Answer reply]
-          )
-        Engine.Done expense ->
-          ( Just (SavingExpense expense)
-          , [Answer holdOn, Store ExpenseCreationDone expense]
-          )
-    SavingExpense _ -> (Just conversation, [Answer holdOn])
-    FetchingBalance _ -> (Just conversation, [Answer holdOn])
+notifyPeer :: Telegram.Handler -> Maybe ChatId -> Reply -> IO ()
+notifyPeer telegram maybePeerChatId msg =
+  case maybePeerChatId of
+    Nothing ->
+      pure ()
+    Just peerChatId ->
+      Telegram.sendMessage telegram peerChatId msg
 
 
 holdOn :: Reply

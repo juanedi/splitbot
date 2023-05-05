@@ -1,8 +1,8 @@
 module Splitwise (
-  group,
+  Splitwise.init,
   createExpense,
   getBalance,
-  Group,
+  Handler,
   Role (..),
   ExpenseOutcome (..),
 ) where
@@ -24,8 +24,9 @@ newtype UserId = UserId
   deriving (Eq)
 
 
-data Group = Group
-  { token :: Api.Token
+data Handler = Handler
+  { http :: Http.Manager
+  , token :: Api.Token
   , owner :: UserId
   , peer :: UserId
   }
@@ -38,22 +39,22 @@ data ExpenseOutcome = Created | Failed
   deriving (Show)
 
 
-group :: String -> Integer -> Integer -> Group
-group token owner peer =
-  Group
-    { token = Api.Token (pack token)
+init :: Http.Manager -> String -> Integer -> Integer -> Handler
+init http token owner peer =
+  Handler
+    { http = http
+    , token = Api.Token (pack token)
     , owner = UserId owner
     , peer = UserId peer
     }
 
 
 createExpense ::
-  Http.Manager ->
+  Handler ->
   Role ->
-  Group ->
   Expense.Expense ->
   IO ExpenseOutcome
-createExpense http role group expense = do
+createExpense handler role expense = do
   let description =
         (Expense.descriptionText . Expense.description) expense
       cost = (Expense.amountValue . Expense.amount) expense
@@ -61,9 +62,9 @@ createExpense http role group expense = do
       (ownerPaidShare, peerPaidShare) = paidShares payer role cost
       split = Expense.split expense
       (myOwedShare, buddysOwedShare) = owedShares split role cost
-      apiToken = token group
+      apiToken = token handler
   success <-
-    Api.createExpense http apiToken $
+    Api.createExpense (http handler) apiToken $
       Api.Expense
         { Api.payment = False
         , Api.cost = cost
@@ -71,13 +72,13 @@ createExpense http role group expense = do
         , Api.description = description
         , Api.user1Share =
             Api.UserShare
-              { Api.userId = getId (owner group)
+              { Api.userId = getId (owner handler)
               , Api.paidShare = ownerPaidShare
               , Api.owedShare = myOwedShare
               }
         , Api.user2Share =
             Api.UserShare
-              { Api.userId = getId (peer group)
+              { Api.userId = getId (peer handler)
               , Api.paidShare = peerPaidShare
               , Api.owedShare = buddysOwedShare
               }
@@ -85,10 +86,10 @@ createExpense http role group expense = do
   return (if success then Created else Failed)
 
 
-getBalance :: Http.Manager -> Group -> Role -> IO (Maybe Balance)
-getBalance http group role = do
+getBalance :: Handler -> Role -> IO (Maybe Balance)
+getBalance handler role = do
   -- TODO use role to invert balance if necessary
-  response <- Api.getBalance http (token group) (getId (peer group))
+  response <- Api.getBalance (http handler) (token handler) (getId (peer handler))
   let balance =
         GetBalanceResponse.balance . GetBalanceResponse.friend <$> response
   return

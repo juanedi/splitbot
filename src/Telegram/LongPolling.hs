@@ -1,9 +1,7 @@
 module Telegram.LongPolling (run) where
 
 import Control.Concurrent (threadDelay)
-import qualified Network.HTTP.Client as Http
-import Network.HTTP.Client.TLS (newTlsManager)
-import qualified Telegram as Telegram
+import qualified Telegram
 import qualified Telegram.Api as Api
 import qualified Telegram.Api.GetUpdates as GetUpdates
 import Telegram.Api.Update (Update)
@@ -13,8 +11,7 @@ import qualified Telegram.Message as Message
 
 
 data State = State
-  { http :: Http.Manager
-  , token :: Telegram.Token
+  { handler :: Telegram.Handler
   , fetchState :: FetchState
   }
 
@@ -29,10 +26,9 @@ data FetchState
 type Callback = Message -> IO ()
 
 
-run :: Callback -> Telegram.Token -> IO ()
-run callback token = do
-  http <- newTlsManager
-  let state = State {http = http, token = token, fetchState = NeedMore Nothing}
+run :: Callback -> Telegram.Handler -> IO ()
+run callback handler = do
+  let state = State {handler = handler, fetchState = NeedMore Nothing}
   loop callback state
 
 
@@ -54,7 +50,7 @@ getMessage state =
             [] -> state {fetchState = NeedMore $ Just $ Update.updateId nextUpdate}
         )
     NeedMore lastUpdateId -> do
-      response <- requestUpdates (token state) (http state) lastUpdateId
+      response <- requestUpdates (handler state) lastUpdateId
       case GetUpdates.result response of
         u : us -> do
           getMessage (state {fetchState = Buffered u us})
@@ -65,17 +61,16 @@ getMessage state =
 
 
 requestUpdates ::
-  Telegram.Token ->
-  Http.Manager ->
+  Telegram.Handler ->
   Maybe Integer ->
-  IO (GetUpdates.UpdateResponse)
-requestUpdates token manager lastUpdateId = do
-  result <- Telegram.getUpdates manager token ((+ 1) <$> lastUpdateId)
+  IO GetUpdates.UpdateResponse
+requestUpdates handler lastUpdateId = do
+  result <- Telegram.getUpdates handler ((+ 1) <$> lastUpdateId)
   case result of
     (Left Api.GetUpdatesApiError) -> do
       putStrLn "Error contacting telegram for updates. Will retry soon."
-      requestUpdates token manager lastUpdateId
+      requestUpdates handler lastUpdateId
     (Left Api.GetUpdatesDecodingError) -> do
       putStrLn "Decoding error! Skipping message"
-      requestUpdates token manager ((+ 1) <$> lastUpdateId)
+      requestUpdates handler ((+ 1) <$> lastUpdateId)
     (Right updates) -> return updates
