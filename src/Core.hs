@@ -17,6 +17,7 @@ import Settings (Settings)
 import qualified Settings
 import qualified Splitwise
 import qualified System.FilePath.Posix as FilePath
+import qualified Telegram
 import Telegram.Api (ChatId (..))
 import Telegram.Message (Message)
 import qualified Telegram.Message as Message
@@ -98,12 +99,17 @@ initialize localStore settings = do
     )
 
 
-update :: LocalStore.Handler -> Event -> Model -> IO (Model, [Effect])
-update localStore event model =
+update ::
+  Telegram.Handler ->
+  LocalStore.Handler ->
+  Event ->
+  Model ->
+  IO (Model, [Effect])
+update telegram localStore event model =
   case event of
     MessageReceived msg ->
       --
-      updateFromMessage localStore msg model
+      updateFromMessage telegram localStore msg model
     ConversationEvent userId conversationEvent -> do
       (updatedUser, effects) <-
         relayEvent
@@ -168,8 +174,13 @@ chatIdPath userId =
     ]
 
 
-updateFromMessage :: LocalStore.Handler -> Message -> Model -> IO (Model, [Effect])
-updateFromMessage localStore msg model =
+updateFromMessage ::
+  Telegram.Handler ->
+  LocalStore.Handler ->
+  Message ->
+  Model ->
+  IO (Model, [Effect])
+updateFromMessage telegram localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
         Nothing -> do
@@ -190,7 +201,7 @@ updateFromMessage localStore msg model =
                 )
 
           (updatedCurrentUser, effects) <-
-            answerMessage msg contactInfo currentUser
+            answerMessage telegram msg contactInfo currentUser
 
           when (shouldStoreChatId chatId currentUser) $
             writeChatId localStore userId chatId
@@ -198,13 +209,20 @@ updateFromMessage localStore msg model =
           pure (updateUser userId updatedCurrentUser model, effects)
 
 
-answerMessage :: Message -> ContactInfo -> User -> IO (User, [Effect])
-answerMessage msg contactInfo currentUser = do
+answerMessage :: Telegram.Handler -> Message -> ContactInfo -> User -> IO (User, [Effect])
+answerMessage telegram msg contactInfo currentUser = do
   let txt = Message.text msg
   (maybeConversation, effects) <-
+    -- TODO: simplify once we get rid of effects in `messageReceived``
     case conversationState currentUser of
-      Uninitialized -> Conversation.start txt (preset currentUser)
-      Inactive _ -> Conversation.start txt (preset currentUser)
+      Uninitialized ->
+        fmap
+          (\c -> (Just c, []))
+          (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
+      Inactive _ ->
+        fmap
+          (\c -> (Just c, []))
+          (Conversation.start telegram (ownChatId contactInfo) txt (preset currentUser))
       Active _ conversation -> Conversation.messageReceived txt conversation
   let userChatId = Message.chatId msg
   pure

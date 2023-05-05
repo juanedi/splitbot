@@ -93,7 +93,7 @@ onMessage runtime message =
 loop :: Runtime -> IO ()
 loop runtime = do
   event <- Queue.dequeue (queue runtime)
-  (updatedCore, effects) <- Core.update (localStore runtime) event (core runtime)
+  (updatedCore, effects) <- Core.update (telegram runtime) (localStore runtime) event (core runtime)
   runEffects runtime effects
   loop (runtime {core = updatedCore})
 

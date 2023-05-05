@@ -15,6 +15,8 @@ import Data.Maybe (fromMaybe)
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
+import qualified Telegram
+import Telegram.Api (ChatId)
 import Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
@@ -38,11 +40,17 @@ data Effect
   | GetBalance (Maybe Balance -> Event)
 
 
-start :: String -> Split -> IO (Maybe Conversation, [Effect])
-start message preset =
+start ::
+  Telegram.Handler ->
+  ChatId ->
+  String ->
+  Split ->
+  IO Conversation
+start telegram chatId message preset =
   case Engine.start message preset of
-    (engineState, reply) ->
-      pure (Just (GatheringInfo engineState), [Answer reply])
+    (engineState, reply) -> do
+      Telegram.sendMessage telegram chatId reply
+      pure (GatheringInfo engineState)
 
 
 update :: Event -> Conversation -> IO (Maybe Conversation, [Effect])
