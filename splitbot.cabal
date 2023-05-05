@@ -56,7 +56,7 @@ executable splitbot
                 ,  Conversation.Expense
                 ,  Core
                 ,  Currency
-                ,  LocalDB
+                ,  LocalStore
                 ,  Queue
                 ,  Runtime
                 ,  Settings

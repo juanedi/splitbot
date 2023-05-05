@@ -3,7 +3,7 @@ module Runtime (start) where
 import Control.Concurrent.Async (concurrently)
 import qualified Conversation
 import qualified Core
-import qualified LocalDB
+import qualified LocalStore
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
 import Queue (Queue)
@@ -22,7 +22,7 @@ import qualified Telegram.WebhookServer
 data Runtime = Runtime
   { telegram :: Telegram.Handler
   , splitwise :: Splitwise.Handler
-  , localDB :: LocalDB.Handler
+  , localStore :: LocalStore.Handler
   , queue :: Queue Core.Event
   , core :: Core.Model
   }
@@ -65,10 +65,11 @@ startServer port settings = do
 
 init :: Settings -> IO Runtime
 init settings = do
+  let localStore = LocalStore.init (Settings.storePath settings)
   queue <- Queue.new
   httpManager <- newTlsManager
-  let (core, initialEffects) = Core.initialize settings
-      runtime =
+  core <- Core.initialize localStore settings
+  let runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)
           , splitwise =
@@ -77,11 +78,10 @@ init settings = do
                 (Settings.userASplitwiseToken settings)
                 (Settings.userASplitwiseId settings)
                 (Settings.userBSplitwiseId settings)
-          , localDB = LocalDB.init (Settings.storePath settings)
+          , localStore = localStore
           , queue = queue
           , core = core
           }
-  runEffects runtime initialEffects
   return runtime
 
 
@@ -93,7 +93,7 @@ onMessage runtime message =
 loop :: Runtime -> IO ()
 loop runtime = do
   event <- Queue.dequeue (queue runtime)
-  let (updatedCore, effects) = Core.update event (core runtime)
+  (updatedCore, effects) <- Core.update (localStore runtime) event (core runtime)
   runEffects runtime effects
   loop (runtime {core = updatedCore})
 
@@ -112,14 +112,6 @@ runEffect runtime effect =
   case effect of
     Core.LogError msg ->
       putStrLn msg
-    Core.LoadChatId userId -> do
-      maybeChatId <- LocalDB.readChatId (localDB runtime) userId
-      case maybeChatId of
-        Nothing -> return ()
-        Just chatId -> do
-          Queue.enqueue (queue runtime) (Core.ChatIdLoaded userId chatId)
-    Core.PersistChatId userId chatId ->
-      LocalDB.storeChatId (localDB runtime) userId chatId
     Core.ConversationEffect contactInfo eff ->
       case eff of
         Conversation.Answer reply ->
