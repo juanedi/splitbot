@@ -44,32 +44,30 @@ messageReceived ::
   String ->
   Conversation ->
   IO (Maybe Conversation)
-messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage conversation =
-  case conversation of
-    Conversation engineState ->
-      case Engine.update userMessage engineState of
-        Engine.Continue engineState' reply -> do
-          Telegram.sendMessage telegram chatId reply
-          pure (Just (Conversation engineState'))
-        Engine.Terminate reply -> do
-          Telegram.sendMessage telegram chatId reply
-          pure Nothing
-        Engine.Done expense -> do
-          Telegram.sendMessage telegram chatId holdOn
-          outcome <- Splitwise.createExpense splitwise ownRole expense
-          case outcome of
-            Splitwise.Created -> do
-              maybeBalance <- Splitwise.getBalance splitwise ownRole
-              Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
-              notifyPeer
-                telegram
-                maybePeerChatId
-                (peerNotification expense maybeBalance)
+messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) =
+  case Engine.update userMessage engineState of
+    Engine.Continue engineState' reply -> do
+      Telegram.sendMessage telegram chatId reply
+      pure (Just (Conversation engineState'))
+    Engine.Terminate reply -> do
+      Telegram.sendMessage telegram chatId reply
+      pure Nothing
+    Engine.Done expense -> do
+      Telegram.sendMessage telegram chatId holdOn
+      outcome <- Splitwise.createExpense splitwise ownRole expense
+      case outcome of
+        Splitwise.Created -> do
+          maybeBalance <- Splitwise.getBalance splitwise ownRole
+          Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
+          notifyPeer
+            telegram
+            maybePeerChatId
+            (peerNotification expense maybeBalance)
 
-              pure Nothing
-            Splitwise.Failed ->
-              -- TODO: handle this error: maybe ask if we want to retry?
-              pure (Just conversation)
+          pure Nothing
+        Splitwise.Failed ->
+          -- TODO: handle this error: maybe ask if we want to retry?
+          pure (Just (Conversation engineState))
 
 
 notifyPeer :: Telegram.Handler -> Maybe ChatId -> Reply -> IO ()
