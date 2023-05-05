@@ -112,14 +112,14 @@ update telegram splitwise localStore event model =
       --
       updateFromMessage telegram splitwise localStore msg model
     ConversationEvent userId conversationEvent -> do
-      (updatedUser, effects) <-
+      updatedUser <-
         relayEvent
           telegram
           userId
           (getUser userId model)
           (getPeerChatId userId model)
           conversationEvent
-      pure (updateUser userId updatedUser model, effects)
+      pure (updateUser userId updatedUser model, [])
 
 
 relayEvent ::
@@ -128,13 +128,13 @@ relayEvent ::
   User ->
   Maybe ChatId ->
   Conversation.Event ->
-  IO (User, [Effect])
+  IO User
 relayEvent telegram userId currentUser peerChatId event =
   case conversationState currentUser of
-    Uninitialized -> pure (currentUser, [])
-    Inactive _ -> pure (currentUser, [])
+    Uninitialized -> pure currentUser
+    Inactive _ -> pure currentUser
     Active chatId conversation -> do
-      (updatedConversation, conversationEffects) <-
+      updatedConversation <-
         Conversation.update
           telegram
           chatId
@@ -157,7 +157,6 @@ relayEvent telegram userId currentUser peerChatId event =
                   Nothing -> Inactive chatId
                   Just conv -> Active chatId conv
             }
-        , fmap (ConversationEffect contactInfo) conversationEffects
         )
 
 

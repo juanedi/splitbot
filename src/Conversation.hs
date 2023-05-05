@@ -55,7 +55,7 @@ update ::
   Maybe ChatId ->
   Event ->
   Conversation ->
-  IO (Maybe Conversation, [Effect])
+  IO (Maybe Conversation)
 update telegram chatId maybePeerChatId event conversation =
   case (conversation, event) of
     (FetchingBalance expense, OnBalance maybeBalance) -> do
@@ -66,9 +66,9 @@ update telegram chatId maybePeerChatId event conversation =
         Just peerChatId ->
           Telegram.sendMessage telegram peerChatId (peerNotification expense maybeBalance)
 
-      pure (Nothing, [])
+      pure Nothing
     (_, _) ->
-      pure (Just conversation, [])
+      pure (Just conversation)
 
 
 messageReceived ::
