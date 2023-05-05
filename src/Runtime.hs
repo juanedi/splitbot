@@ -66,7 +66,7 @@ init settings = do
   let localStore = LocalStore.init (Settings.storePath settings)
   queue <- Queue.new
   httpManager <- newTlsManager
-  core <- Core.initialize localStore settings
+  core <- Core.init localStore settings
   let runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)

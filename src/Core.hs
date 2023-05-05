@@ -1,5 +1,5 @@
 module Core (
-  initialize,
+  Core.init,
   update,
   UserId (..),
   Model,
@@ -52,8 +52,8 @@ data UserId
   deriving (Show)
 
 
-initialize :: LocalStore.Handler -> Settings -> IO Model
-initialize localStore settings = do
+init :: LocalStore.Handler -> Settings -> IO Model
+init localStore settings = do
   let presetA = Settings.userASplitwisePreset settings
       presetB = 100 - presetA
   chatIdA <- readChatId localStore Core.UserA
