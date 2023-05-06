@@ -54,6 +54,7 @@ executable splitbot
     other-modules: Conversation
                 ,  Conversation.Outcome
                 ,  Conversation.Engines.Basic
+                ,  Conversation.Engines.GPT
                 ,  Conversation.Expense
                 ,  Core
                 ,  Currency

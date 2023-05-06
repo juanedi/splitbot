@@ -22,6 +22,7 @@ data Runtime = Runtime
   , splitwise :: Splitwise.Handler
   , localStore :: LocalStore.Handler
   , queue :: Queue Message
+  , engine :: Conversation.Engine
   , core :: Core.Model
   }
 
@@ -64,6 +65,10 @@ startServer port settings = do
 init :: Settings -> IO Runtime
 init settings = do
   let localStore = LocalStore.init (Settings.storePath settings)
+  let engine =
+        case Settings.openAIToken settings of
+          Just token -> Conversation.GPT token
+          Nothing -> Conversation.Basic
   queue <- Queue.new
   httpManager <- newTlsManager
   core <- Core.init localStore settings
@@ -78,6 +83,7 @@ init settings = do
                 (Settings.userBSplitwiseId settings)
           , localStore = localStore
           , queue = queue
+          , engine = engine
           , core = core
           }
   return runtime
@@ -93,6 +99,7 @@ loop runtime = do
   event <- Queue.dequeue (queue runtime)
   updatedCore <-
     Core.update
+      (engine runtime)
       (telegram runtime)
       (splitwise runtime)
       (localStore runtime)

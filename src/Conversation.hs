@@ -1,11 +1,14 @@
 module Conversation (
   Handler,
   Expense (..),
-  Conversation.init,
+  Engine (..),
+  Conversation.initWithBasicEngine,
+  Conversation.initWithGPTEngine,
   Conversation.onMessage,
 ) where
 
 import Conversation.Engines.Basic as BasicEngine
+import Conversation.Engines.GPT as GPTEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))
@@ -24,9 +27,17 @@ newtype Handler = Handler
   }
 
 
-init :: Split -> IO Handler
-init preset =
-  Handler <$> BasicEngine.init preset
+data Engine
+  = Basic
+  | GPT String
+
+
+initWithBasicEngine :: Split -> IO Handler
+initWithBasicEngine preset = Handler <$> BasicEngine.init preset
+
+
+initWithGPTEngine :: String -> IO Handler
+initWithGPTEngine token = Handler <$> GPTEngine.init token
 
 
 onMessage ::

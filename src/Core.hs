@@ -78,13 +78,14 @@ init localStore settings = do
 
 
 update ::
+  Conversation.Engine ->
   Telegram.Handler ->
   Splitwise.Handler ->
   LocalStore.Handler ->
   Message ->
   Model ->
   IO Model
-update telegram splitwise localStore msg model =
+update engine telegram splitwise localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
         Nothing -> do
@@ -96,6 +97,7 @@ update telegram splitwise localStore msg model =
 
           updatedCurrentUser <-
             onMessage
+              engine
               telegram
               splitwise
               (getPeerChatId userId model)
@@ -136,22 +138,23 @@ chatIdPath userId =
 
 
 onMessage ::
+  Conversation.Engine ->
   Telegram.Handler ->
   Splitwise.Handler ->
   Maybe ChatId ->
   Message ->
   User ->
   IO User
-onMessage telegram splitwise peerChatId msg currentUser = do
+onMessage engine telegram splitwise peerChatId msg currentUser = do
   let ownChatId = Message.chatId msg
       txt = Message.text msg
 
   conversation <-
     case conversationState currentUser of
       Uninitialized ->
-        Conversation.init (preset currentUser)
+        initConversation engine currentUser
       Inactive _ ->
-        Conversation.init (preset currentUser)
+        initConversation engine currentUser
       Active _ conversation ->
         pure conversation
 
@@ -173,6 +176,15 @@ onMessage telegram splitwise peerChatId msg currentUser = do
               else Inactive ownChatId
         }
     )
+
+
+initConversation :: Conversation.Engine -> User -> IO Conversation.Handler
+initConversation engine user =
+  case engine of
+    Conversation.Basic ->
+      Conversation.initWithBasicEngine (preset user)
+    Conversation.GPT token ->
+      Conversation.initWithGPTEngine token
 
 
 shouldStoreChatId :: ChatId -> User -> Bool
