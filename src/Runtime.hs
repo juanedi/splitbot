@@ -6,6 +6,7 @@ import qualified Core
 import qualified LocalStore
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
+import qualified OpenAI
 import Queue (Queue)
 import qualified Queue
 import Settings (Settings)
@@ -65,13 +66,13 @@ startServer port settings = do
 init :: Settings -> IO Runtime
 init settings = do
   let localStore = LocalStore.init (Settings.storePath settings)
-  let engine =
-        case Settings.openAIToken settings of
-          Just token -> Conversation.GPT token
-          Nothing -> Conversation.Basic
   queue <- Queue.new
   httpManager <- newTlsManager
   core <- Core.init localStore settings
+  let engine =
+        case Settings.openAIToken settings of
+          Just token -> Conversation.GPT (OpenAI.init httpManager token)
+          Nothing -> Conversation.Basic
   let runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)

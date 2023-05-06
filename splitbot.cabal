@@ -59,6 +59,7 @@ executable splitbot
                 ,  Core
                 ,  Currency
                 ,  LocalStore
+                ,  OpenAI
                 ,  Queue
                 ,  Runtime
                 ,  Settings

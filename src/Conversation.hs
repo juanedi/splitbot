@@ -13,6 +13,7 @@ import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))
 import Data.Maybe (fromMaybe)
+import qualified OpenAI
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
@@ -29,15 +30,15 @@ newtype Handler = Handler
 
 data Engine
   = Basic
-  | GPT String
+  | GPT OpenAI.Handler
 
 
 initWithBasicEngine :: Split -> IO Handler
 initWithBasicEngine preset = Handler <$> BasicEngine.init preset
 
 
-initWithGPTEngine :: String -> IO Handler
-initWithGPTEngine token = Handler <$> GPTEngine.init token
+initWithGPTEngine :: OpenAI.Handler -> IO Handler
+initWithGPTEngine openAI = Handler <$> GPTEngine.init openAI
 
 
 onMessage ::

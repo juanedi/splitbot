@@ -1,11 +1,12 @@
 module Conversation.Engines.GPT (Conversation.Engines.GPT.init) where
 
 import Conversation.Outcome (Outcome (..))
+import qualified OpenAI
 import qualified Telegram.Reply as Reply
 
 
-init :: String -> IO (String -> IO Outcome)
-init _token =
+init :: OpenAI.Handler -> IO (String -> IO Outcome)
+init _openAI =
   pure onMessage
 
 
