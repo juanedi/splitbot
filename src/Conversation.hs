@@ -5,7 +5,7 @@ module Conversation (
   Conversation.onMessage,
 ) where
 
-import Conversation.BasicEngine as BasicEngine
+import Conversation.Engines.Basic as BasicEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))

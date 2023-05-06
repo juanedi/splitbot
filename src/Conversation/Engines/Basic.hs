@@ -1,4 +1,4 @@
-module Conversation.BasicEngine (Conversation.BasicEngine.init) where
+module Conversation.Engines.Basic (Conversation.Engines.Basic.init) where
 
 import Control.Applicative ((<|>))
 import qualified Control.Concurrent.MVar as MVar
