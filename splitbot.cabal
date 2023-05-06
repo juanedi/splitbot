@@ -79,3 +79,4 @@ executable splitbot
                 ,  Telegram.WebhookServer
     default-language: Haskell2010
     default-extensions:  OverloadedStrings
+                       , DeriveGeneric
