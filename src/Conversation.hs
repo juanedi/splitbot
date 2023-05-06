@@ -5,7 +5,7 @@ module Conversation (
   Conversation.start,
 ) where
 
-import Conversation.Engine as Engine
+import Conversation.BasicEngine as BasicEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Data.Maybe (fromMaybe)
@@ -19,7 +19,7 @@ import qualified Telegram.Reply as Reply
 
 
 newtype Conversation
-  = Conversation Engine.State
+  = Conversation BasicEngine.State
 
 
 start ::
@@ -29,7 +29,7 @@ start ::
   Split ->
   IO Conversation
 start telegram chatId message preset = do
-  (engineState, reply) <- Engine.start message preset
+  (engineState, reply) <- BasicEngine.start message preset
   Telegram.sendMessage telegram chatId reply
   pure (Conversation engineState)
 
@@ -44,15 +44,15 @@ messageReceived ::
   Conversation ->
   IO (Maybe Conversation)
 messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) = do
-  outcome <- Engine.update userMessage engineState
+  outcome <- BasicEngine.update userMessage engineState
   case outcome of
-    Engine.Continue engineState' reply -> do
+    BasicEngine.Continue engineState' reply -> do
       Telegram.sendMessage telegram chatId reply
       pure (Just (Conversation engineState'))
-    Engine.Terminate reply -> do
+    BasicEngine.Terminate reply -> do
       Telegram.sendMessage telegram chatId reply
       pure Nothing
-    Engine.Done expense -> do
+    BasicEngine.Done expense -> do
       Telegram.sendMessage telegram chatId holdOn
       outcome <- Splitwise.createExpense splitwise ownRole expense
       case outcome of

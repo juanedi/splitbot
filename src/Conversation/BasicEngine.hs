@@ -3,7 +3,7 @@
  Just an intermediate layer for now, but meant to serve as a boundary to
  abstract over legacy vs AI-based querying.
 -}
-module Conversation.Engine (State, Outcome (..), start, update) where
+module Conversation.BasicEngine (State, Outcome (..), start, update) where
 
 import Control.Applicative ((<|>))
 import Conversation.Expense (Amount (..), Description (..), Expense, Split (..), Who (..))
