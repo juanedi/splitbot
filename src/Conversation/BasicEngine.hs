@@ -1,13 +1,10 @@
-{- | Engine used to gather information from the user.
-
- Just an intermediate layer for now, but meant to serve as a boundary to
- abstract over legacy vs AI-based querying.
--}
-module Conversation.BasicEngine (State, Outcome (..), start, update) where
+module Conversation.BasicEngine (Conversation.BasicEngine.init) where
 
 import Control.Applicative ((<|>))
+import qualified Control.Concurrent.MVar as MVar
 import Conversation.Expense (Amount (..), Description (..), Expense, Split (..), Who (..))
 import qualified Conversation.Expense as Expense
+import Conversation.Outcome (Outcome (..))
 import Data.Char (toLower)
 import Telegram.Reply (Reply)
 import qualified Telegram.Reply
@@ -52,80 +49,74 @@ data State
   | AwaitingConfirmation Expense
 
 
-data Outcome
-  = Continue State Reply
-  | Terminate Reply
-  | Done Expense
+init :: Split -> IO (String -> IO Outcome)
+init preset = do
+  stateVar <- MVar.newMVar (AwaitingDescription preset)
+  pure $ \message -> do
+    MVar.modifyMVar
+      stateVar
+      (update message)
 
 
-start :: String -> Split -> IO (State, Reply)
-start message preset =
-  pure $
-    case message of
-      "/start" ->
-        ( AwaitingDescription preset
-        , Telegram.Reply.plain "👋 Hey! Please enter a description for the expense report."
-        )
-      _ ->
-        let description = Description message
-         in ( AwaitingInitialConfirmation preset description
-            , confirmDescription description
-            )
-
-
-update :: String -> State -> IO Outcome
+update :: String -> State -> IO (State, Outcome)
 update userMessage state =
   pure $
     case state of
       AwaitingDescription preset ->
-        Continue
-          ( AwaitingAmount
-              { preset = preset
-              , description = Description userMessage
-              }
-          )
-          (Telegram.Reply.plain "How much?")
+        case userMessage of
+          "/start" ->
+            ( AwaitingDescription preset
+            , Continue (Telegram.Reply.plain "👋 Hey! Please enter a description for the expense report.")
+            )
+          _ ->
+            let description = Description userMessage
+             in ( AwaitingInitialConfirmation preset description
+                , Continue (confirmDescription description)
+                )
       AwaitingInitialConfirmation preset description ->
         if userMessage == "Yes"
           then
-            Continue
-              (AwaitingAmount {preset = preset, description = description})
-              (Telegram.Reply.plain "How much?")
-          else terminate
+            ( (AwaitingAmount {preset = preset, description = description})
+            , Continue (Telegram.Reply.plain "How much?")
+            )
+          else
+            ( state
+            , terminate
+            )
       AwaitingAmount preset description ->
         case parseAmount userMessage of
           Just amount ->
-            Continue
-              ( AwaitingPayer
+            ( ( AwaitingPayer
                   { preset = preset
                   , description = description
                   , amount = amount
                   }
               )
-              askWho
+            , Continue askWho
+            )
           Nothing ->
-            Continue
-              state
-              (Telegram.Reply.apologizing askAmount)
+            ( state
+            , Continue (Telegram.Reply.apologizing askAmount)
+            )
       AwaitingPayer preset description amount ->
         case parseWho userMessage of
           Just payer ->
-            Continue
-              ( AwaitingSplit
-                  { preset = preset
-                  , description = description
-                  , amount = amount
-                  , payer = payer
-                  }
-              )
-              ( Telegram.Reply.withOptions
-                  "How will you split it?"
-                  ["Evenly", "All on me", "All on them", show (Expense.myPart preset) ++ "% on me"]
-              )
+            ( AwaitingSplit
+                { preset = preset
+                , description = description
+                , amount = amount
+                , payer = payer
+                }
+            , Continue
+                ( Telegram.Reply.withOptions
+                    "How will you split it?"
+                    ["Evenly", "All on me", "All on them", show (Expense.myPart preset) ++ "% on me"]
+                )
+            )
           Nothing ->
-            Continue
-              state
-              askWho
+            ( state
+            , Continue askWho
+            )
       AwaitingSplit preset description payer amount ->
         case parseSplit userMessage of
           Just split ->
@@ -137,17 +128,19 @@ update userMessage state =
                       , Expense.split = split
                       }
                   )
-             in Continue
-                  (AwaitingConfirmation expense)
-                  (askConfirmation expense)
+             in ( AwaitingConfirmation expense
+                , Continue (askConfirmation expense)
+                )
           Nothing ->
-            Continue
-              state
-              (Telegram.Reply.apologizing (askSplit preset))
+            ( state
+            , Continue (Telegram.Reply.apologizing (askSplit preset))
+            )
       AwaitingConfirmation expense ->
-        if userMessage == "Yes"
-          then Done expense
-          else terminate
+        ( state
+        , if userMessage == "Yes"
+            then Done expense
+            else terminate
+        )
 
 
 terminate :: Outcome

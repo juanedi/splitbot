@@ -6,7 +6,6 @@ module Core (
 ) where
 
 import Control.Monad (when)
-import Conversation (Conversation)
 import qualified Conversation
 import Conversation.Expense (Split (..))
 import qualified LocalStore
@@ -43,7 +42,7 @@ data ConversationState
   | -- we have contacted the user before, and there is no active conversation
     Inactive ChatId
   | -- we are waiting for a reply from the user
-    Active ChatId Conversation
+    Active ChatId Conversation.Handler
 
 
 data UserId
@@ -96,7 +95,7 @@ update telegram splitwise localStore msg model =
               chatId = Message.chatId msg
 
           updatedCurrentUser <-
-            answerMessage
+            onMessage
               telegram
               splitwise
               (getPeerChatId userId model)
@@ -136,47 +135,42 @@ chatIdPath userId =
     ]
 
 
-answerMessage ::
+onMessage ::
   Telegram.Handler ->
   Splitwise.Handler ->
   Maybe ChatId ->
   Message ->
   User ->
   IO User
-answerMessage telegram splitwise peerChatId msg currentUser = do
+onMessage telegram splitwise peerChatId msg currentUser = do
   let ownChatId = Message.chatId msg
       txt = Message.text msg
-  maybeConversation <-
+
+  conversation <-
     case conversationState currentUser of
       Uninitialized ->
-        Just
-          <$> Conversation.start
-            telegram
-            ownChatId
-            txt
-            (preset currentUser)
+        Conversation.init (preset currentUser)
       Inactive _ ->
-        Just
-          <$> Conversation.start
-            telegram
-            ownChatId
-            txt
-            (preset currentUser)
+        Conversation.init (preset currentUser)
       Active _ conversation ->
-        Conversation.messageReceived
-          telegram
-          splitwise
-          ownChatId
-          peerChatId
-          (splitwiseRole currentUser)
-          txt
-          conversation
+        pure conversation
+
+  continue <-
+    Conversation.onMessage
+      conversation
+      telegram
+      splitwise
+      ownChatId
+      peerChatId
+      (splitwiseRole currentUser)
+      txt
+
   pure
     ( currentUser
         { conversationState =
-            case maybeConversation of
-              Nothing -> Inactive ownChatId
-              Just c -> Active ownChatId c
+            if continue
+              then Active ownChatId conversation
+              else Inactive ownChatId
         }
     )
 

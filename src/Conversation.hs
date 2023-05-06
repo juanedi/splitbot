@@ -1,13 +1,14 @@
 module Conversation (
-  Conversation,
+  Handler,
   Expense (..),
-  messageReceived,
-  Conversation.start,
+  Conversation.init,
+  Conversation.onMessage,
 ) where
 
 import Conversation.BasicEngine as BasicEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
+import Conversation.Outcome (Outcome (..))
 import Data.Maybe (fromMaybe)
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
@@ -18,41 +19,35 @@ import Telegram.Reply (Reply)
 import qualified Telegram.Reply as Reply
 
 
-newtype Conversation
-  = Conversation BasicEngine.State
+newtype Handler = Handler
+  { _onMessage :: String -> IO Outcome
+  }
 
 
-start ::
-  Telegram.Handler ->
-  ChatId ->
-  String ->
-  Split ->
-  IO Conversation
-start telegram chatId message preset = do
-  (engineState, reply) <- BasicEngine.start message preset
-  Telegram.sendMessage telegram chatId reply
-  pure (Conversation engineState)
+init :: Split -> IO Handler
+init preset =
+  Handler <$> BasicEngine.init preset
 
 
-messageReceived ::
+onMessage ::
+  Conversation.Handler ->
   Telegram.Handler ->
   Splitwise.Handler ->
   ChatId ->
   Maybe ChatId ->
   Splitwise.Role ->
   String ->
-  Conversation ->
-  IO (Maybe Conversation)
-messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (Conversation engineState) = do
-  outcome <- BasicEngine.update userMessage engineState
+  IO Bool
+onMessage (Handler _onMessage) telegram splitwise chatId maybePeerChatId ownRole userMessage = do
+  outcome <- _onMessage userMessage
   case outcome of
-    BasicEngine.Continue engineState' reply -> do
+    Continue reply -> do
       Telegram.sendMessage telegram chatId reply
-      pure (Just (Conversation engineState'))
-    BasicEngine.Terminate reply -> do
+      pure True
+    Terminate reply -> do
       Telegram.sendMessage telegram chatId reply
-      pure Nothing
-    BasicEngine.Done expense -> do
+      pure False
+    Done expense -> do
       Telegram.sendMessage telegram chatId holdOn
       outcome <- Splitwise.createExpense splitwise ownRole expense
       case outcome of
@@ -64,10 +59,10 @@ messageReceived telegram splitwise chatId maybePeerChatId ownRole userMessage (C
             maybePeerChatId
             (peerNotification expense maybeBalance)
 
-          pure Nothing
+          pure False
         Splitwise.Failed ->
           -- TODO: handle this error: maybe ask if we want to retry?
-          pure (Just (Conversation engineState))
+          pure True
 
 
 notifyPeer :: Telegram.Handler -> Maybe ChatId -> Reply -> IO ()
