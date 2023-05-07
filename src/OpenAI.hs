@@ -9,8 +9,21 @@ module OpenAI (
 ) where
 
 import Data.Aeson (ToJSON, toJSON)
+import qualified Data.Aeson
+import qualified Data.ByteString as BS
+import Data.ByteString.Char8 (pack)
 import GHC.Generics (Generic)
+import Network.HTTP.Client (
+  RequestBody (..),
+  httpLbs,
+  parseRequest_,
+  requestBody,
+  requestHeaders,
+  responseBody,
+  responseStatus,
+ )
 import qualified Network.HTTP.Client as Http
+import Network.HTTP.Types.Status (statusCode)
 
 
 data Handler = Handler
@@ -80,8 +93,39 @@ data ChatParams = ChatParams
 instance ToJSON ChatParams
 
 
-chat :: Handler -> ChatParams -> IO ChatMessage
-chat = undefined
+data ApiError
+  = UnexpectedStatusCode Int
+  | GenericError String
+
+
+data ChatResponse = ChatResponse
+  { choces :: [Choice]
+  }
+
+
+data Choice = Choice
+  { message :: ChatMessage
+  }
+  deriving (Generic)
+
+
+chat :: Handler -> ChatParams -> IO (Either ApiError ChatMessage)
+chat (Handler http token) params = do
+  let request =
+        (parseRequest_ "https://api.openai.com/v1/chat/completions")
+          { Http.method = "POST"
+          , requestHeaders =
+              [ ("Content-Type", "application/json")
+              , ("Authorization", BS.concat ["Bearer ", pack token])
+              ]
+          , requestBody = (RequestBodyLBS . Data.Aeson.encode) params
+          }
+  response <- httpLbs request http
+  let status = (statusCode . responseStatus) response
+  if status == 200
+    then -- TODO
+      undefined
+    else return (Left (UnexpectedStatusCode status))
 
 
 systemMessage :: String -> ChatMessage
