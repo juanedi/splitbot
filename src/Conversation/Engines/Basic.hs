@@ -1,7 +1,7 @@
 module Conversation.Engines.Basic (Conversation.Engines.Basic.init) where
 
 import Control.Applicative ((<|>))
-import qualified Control.Concurrent.MVar as MVar
+import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Expense (Amount (..), Description (..), Expense, Split (..), Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))
@@ -51,9 +51,9 @@ data State
 
 init :: Split -> IO (String -> IO Outcome)
 init preset = do
-  stateVar <- MVar.newMVar (AwaitingDescription preset)
+  stateVar <- newMVar (AwaitingDescription preset)
   pure $ \message -> do
-    MVar.modifyMVar
+    modifyMVar
       stateVar
       (pure . update message)
 

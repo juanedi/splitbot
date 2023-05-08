@@ -5,7 +5,9 @@ module OpenAI (
   systemMessage,
   userMessage,
   ChatModel (..),
+  ChatMessage (..),
   ChatParams (..),
+  Role (..),
 ) where
 
 import Data.Aeson (FromJSON, ToJSON, parseJSON, toJSON, withText)
@@ -58,8 +60,8 @@ instance ToJSON ChatModel where
           GPT_4_0314 -> "gpt-4-0314"
           GPT_4_32k -> "gpt-4-32k"
           GPT_4_32k_0314 -> "gpt-4-32k-0314"
-          GPT_3_5_Turbo -> "gpt-3-5-turbo"
-          GPT_3_5_Turbo_0301 -> "gpt-3-5-turbo-0301"
+          GPT_3_5_Turbo -> "gpt-3.5-turbo"
+          GPT_3_5_Turbo_0301 -> "gpt-3.5-turbo-0301"
       )
 
 
@@ -95,7 +97,7 @@ instance FromJSON Role where
           case r of
             "system" -> return System
             "user" -> return User
-            "assisstant" -> return Assistant
+            "assistant" -> return Assistant
             _ -> fail ("Unrecognized role: " ++ (Data.Text.unpack r))
       )
 
@@ -114,6 +116,7 @@ instance ToJSON ChatParams
 data ApiError
   = UnexpectedStatusCode Int
   | GenericError String
+  deriving (Show)
 
 
 data ChatResponse = ChatResponse
@@ -154,7 +157,9 @@ chat (Handler http token) params = do
         pure $ (Right . message . NonEmpty.head . choices) chatResponse
       Left err ->
         pure (Left (GenericError err))
-    else return (Left (UnexpectedStatusCode statusCode_))
+    else do
+      putStrLn ("Unexpected status code (" ++ show statusCode_ ++ "). Response body follows:\n" ++ (show responseBody_))
+      return (Left (UnexpectedStatusCode statusCode_))
 
 
 systemMessage :: String -> ChatMessage
