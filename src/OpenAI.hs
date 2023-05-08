@@ -8,10 +8,14 @@ module OpenAI (
   ChatParams (..),
 ) where
 
-import Data.Aeson (ToJSON, toJSON)
+import Data.Aeson (FromJSON, ToJSON, parseJSON, toJSON, withText)
 import qualified Data.Aeson
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 (pack)
+import qualified Data.ByteString.Lazy as LBS
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text
 import GHC.Generics (Generic)
 import Network.HTTP.Client (
   RequestBody (..),
@@ -67,6 +71,7 @@ data ChatMessage = ChatMessage
 
 
 instance ToJSON ChatMessage
+instance FromJSON ChatMessage
 
 
 data Role = System | User | Assistant
@@ -79,6 +84,19 @@ instance ToJSON Role where
           System -> "system" :: String
           User -> "user"
           Assistant -> "assistant"
+      )
+
+
+instance FromJSON Role where
+  parseJSON =
+    withText
+      "role"
+      ( \r ->
+          case r of
+            "system" -> return System
+            "user" -> return User
+            "assisstant" -> return Assistant
+            _ -> fail ("Unrecognized role: " ++ (Data.Text.unpack r))
       )
 
 
@@ -99,14 +117,21 @@ data ApiError
 
 
 data ChatResponse = ChatResponse
-  { choces :: [Choice]
+  { choices :: NonEmpty Choice
   }
+  deriving (Generic)
+
+
+instance FromJSON ChatResponse
 
 
 data Choice = Choice
   { message :: ChatMessage
   }
   deriving (Generic)
+
+
+instance FromJSON Choice
 
 
 chat :: Handler -> ChatParams -> IO (Either ApiError ChatMessage)
@@ -121,11 +146,15 @@ chat (Handler http token) params = do
           , requestBody = (RequestBodyLBS . Data.Aeson.encode) params
           }
   response <- httpLbs request http
-  let status = (statusCode . responseStatus) response
-  if status == 200
-    then -- TODO
-      undefined
-    else return (Left (UnexpectedStatusCode status))
+  let statusCode_ = statusCode (responseStatus response)
+      responseBody_ = responseBody response
+  if statusCode_ == 200
+    then case Data.Aeson.eitherDecode responseBody_ of
+      Right chatResponse ->
+        pure $ (Right . message . NonEmpty.head . choices) chatResponse
+      Left err ->
+        pure (Left (GenericError err))
+    else return (Left (UnexpectedStatusCode statusCode_))
 
 
 systemMessage :: String -> ChatMessage
