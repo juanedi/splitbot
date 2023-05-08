@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module OpenAI (
   Handler,
   OpenAI.init,
@@ -12,9 +14,11 @@ module OpenAI (
 
 import Data.Aeson (FromJSON, ToJSON, parseJSON, toJSON, withText)
 import qualified Data.Aeson
+import Data.Aeson.TH
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 (pack)
 import qualified Data.ByteString.Lazy as LBS
+import Data.Char (toLower)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text
@@ -65,6 +69,13 @@ instance ToJSON ChatModel where
       )
 
 
+data Role = System | User | Assistant
+$( deriveJSON
+    (defaultOptions {constructorTagModifier = map toLower})
+    ''Role
+ )
+
+
 data ChatMessage = ChatMessage
   { role :: Role
   , content :: String
@@ -74,32 +85,6 @@ data ChatMessage = ChatMessage
 
 instance ToJSON ChatMessage
 instance FromJSON ChatMessage
-
-
-data Role = System | User | Assistant
-
-
-instance ToJSON Role where
-  toJSON role =
-    toJSON $
-      ( case role of
-          System -> "system" :: String
-          User -> "user"
-          Assistant -> "assistant"
-      )
-
-
-instance FromJSON Role where
-  parseJSON =
-    withText
-      "role"
-      ( \r ->
-          case r of
-            "system" -> return System
-            "user" -> return User
-            "assistant" -> return Assistant
-            _ -> fail ("Unrecognized role: " ++ (Data.Text.unpack r))
-      )
 
 
 data ChatParams = ChatParams
@@ -139,6 +124,7 @@ instance FromJSON Choice
 
 chat :: Handler -> ChatParams -> IO (Either ApiError ChatMessage)
 chat (Handler http token) params = do
+  putStrLn (show (Data.Aeson.encode params))
   let request =
         (parseRequest_ "https://api.openai.com/v1/chat/completions")
           { Http.method = "POST"
