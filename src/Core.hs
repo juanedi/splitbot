@@ -30,7 +30,8 @@ data Model = Model
 
 
 data User = User
-  { telegramId :: Username
+  { name :: String
+  , telegramId :: Username
   , splitwiseRole :: Splitwise.Role
   , preset :: Split
   , conversationState :: ConversationState
@@ -62,14 +63,16 @@ init localStore settings = do
     ( Model
         { userA =
             User
-              { telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
+              { name = Settings.userAName settings
+              , telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
               , splitwiseRole = Splitwise.Owner
               , preset = Split presetA
               , conversationState = maybe Uninitialized Inactive chatIdA
               }
         , userB =
             User
-              { telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
+              { name = Settings.userBName settings
+              , telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
               , splitwiseRole = Splitwise.Peer
               , preset = Split presetB
               , conversationState = maybe Uninitialized Inactive chatIdB
