@@ -74,7 +74,10 @@ init settings = do
   let engine =
         case (Settings.openAIToken settings, Settings.openAIPromptTemplate settings) of
           (Just token, Just promptTemplate) ->
-            Conversation.GPT (OpenAI.init httpManager token) promptTemplate
+            Conversation.GPT
+              (OpenAI.init httpManager token)
+              promptTemplate
+              (Settings.botName settings)
           _ ->
             Conversation.Basic
   let runtime =

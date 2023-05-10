@@ -32,7 +32,10 @@ newtype Handler = Handler
 
 data Engine
   = Basic
-  | GPT OpenAI.Handler FilePath
+  | GPT OpenAI.Handler FilePath BotName
+
+
+type BotName = String
 
 
 initWithBasicEngine :: Split -> IO Handler

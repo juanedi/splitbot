@@ -187,7 +187,7 @@ initConversation engine user =
   case engine of
     Conversation.Basic ->
       Conversation.initWithBasicEngine (preset user)
-    Conversation.GPT openAI promptTemplate ->
+    Conversation.GPT openAI promptTemplate botName ->
       Conversation.initWithGPTEngine
         openAI
         promptTemplate
@@ -195,7 +195,7 @@ initConversation engine user =
           PromptParams
             { userName = "Juan"
             , partnerName = "Caro"
-            , botName = "Splitbot (Dev)"
+            , botName = botName
             }
         )
 
