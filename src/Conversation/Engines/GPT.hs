@@ -3,6 +3,7 @@ module Conversation.Engines.GPT (Conversation.Engines.GPT.init, prompt) where
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Outcome (Outcome (..))
 import Data.Text (Text)
+import qualified Data.Text
 import Dhall (ToDhall)
 import qualified Dhall
 import GHC.Generics (Generic)
@@ -11,12 +12,12 @@ import qualified OpenAI
 import qualified Telegram.Reply as Reply
 
 
-data State = State
+newtype State = State
   { messages :: [ChatMessage]
   }
 
 
-init :: OpenAI.Handler -> IO (String -> IO Outcome)
+init :: OpenAI.Handler -> IO (Text -> IO Outcome)
 init openAI = do
   stateVar <- newMVar (State [])
   pure $ \message -> do
@@ -25,7 +26,7 @@ init openAI = do
       (onMessage openAI message)
 
 
-onMessage :: OpenAI.Handler -> String -> State -> IO (State, Outcome)
+onMessage :: OpenAI.Handler -> Text -> State -> IO (State, Outcome)
 onMessage openAI message state = do
   let withUserMessage =
         addMessage
@@ -47,7 +48,7 @@ onMessage openAI message state = do
     Right botMessage ->
       pure
         ( State (addMessage botMessage (messages state))
-        , Continue (Reply.plain (OpenAI.content botMessage))
+        , Continue (Reply.plain (Data.Text.unpack (OpenAI.content botMessage)))
         )
 
 

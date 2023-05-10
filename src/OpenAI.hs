@@ -21,6 +21,7 @@ import qualified Data.ByteString.Lazy as LBS
 import Data.Char (toLower)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Text (Text)
 import qualified Data.Text
 import GHC.Generics (Generic)
 import Network.HTTP.Client (
@@ -58,7 +59,7 @@ data ChatModel
 
 instance ToJSON ChatModel where
   toJSON model =
-    toJSON $
+    toJSON
       ( case model of
           GPT_4 -> "gpt-4" :: String
           GPT_4_0314 -> "gpt-4-0314"
@@ -78,7 +79,7 @@ $( deriveJSON
 
 data ChatMessage = ChatMessage
   { role :: Role
-  , content :: String
+  , content :: Text
   }
   deriving (Generic)
 
@@ -104,7 +105,7 @@ data ApiError
   deriving (Show)
 
 
-data ChatResponse = ChatResponse
+newtype ChatResponse = ChatResponse
   { choices :: NonEmpty Choice
   }
   deriving (Generic)
@@ -113,7 +114,7 @@ data ChatResponse = ChatResponse
 instance FromJSON ChatResponse
 
 
-data Choice = Choice
+newtype Choice = Choice
   { message :: ChatMessage
   }
   deriving (Generic)
@@ -124,7 +125,6 @@ instance FromJSON Choice
 
 chat :: Handler -> ChatParams -> IO (Either ApiError ChatMessage)
 chat (Handler http token) params = do
-  putStrLn (show (Data.Aeson.encode params))
   let request =
         (parseRequest_ "https://api.openai.com/v1/chat/completions")
           { Http.method = "POST"
@@ -148,9 +148,9 @@ chat (Handler http token) params = do
       return (Left (UnexpectedStatusCode statusCode_))
 
 
-systemMessage :: String -> ChatMessage
+systemMessage :: Text -> ChatMessage
 systemMessage = ChatMessage System
 
 
-userMessage :: String -> ChatMessage
+userMessage :: Text -> ChatMessage
 userMessage = ChatMessage User
