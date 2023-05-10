@@ -21,6 +21,7 @@ newtype State = State
 data PromptParams = PromptParams
   { userName :: String
   , partnerName :: String
+  , botName :: String
   }
   deriving (Eq, Generic, Show)
 

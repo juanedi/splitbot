@@ -195,6 +195,7 @@ initConversation engine user =
           PromptParams
             { userName = "Juan"
             , partnerName = "Caro"
+            , botName = "Splitbot (Dev)"
             }
         )
 
