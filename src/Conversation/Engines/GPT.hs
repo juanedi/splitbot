@@ -5,10 +5,13 @@ module Conversation.Engines.GPT (Conversation.Engines.GPT.init, PromptParams (..
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Outcome (Outcome (..))
 import Data.Aeson (FromJSON, parseJSON, withText)
+import qualified Data.Aeson
 import Data.Aeson.TH
+import qualified Data.ByteString.Lazy as LBS
 import Data.Char (toLower)
 import Data.Text (Text)
 import qualified Data.Text
+import Data.Text.Encoding (encodeUtf8)
 import Dhall (ToDhall)
 import qualified Dhall
 import GHC.Generics (Generic)
@@ -138,13 +141,22 @@ onMessage openAI message state = do
       pure
         (state, Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
     Right botMessage ->
-      -- TODO: parse message!
-      pure
-        ( State (addMessage botMessage (messages state))
-        , Continue (Reply.plain (Data.Text.unpack (OpenAI.content botMessage)))
-        )
+      case Data.Aeson.eitherDecode (textToByteString (OpenAI.content botMessage)) of
+        Left err ->
+          pure (state, Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
+        Right reply ->
+          pure
+            ( State (addMessage botMessage (messages state))
+            , Continue (Reply.plain (Data.Text.unpack (response reply)))
+            )
 
 
 addMessage :: ChatMessage -> [ChatMessage] -> [ChatMessage]
 addMessage message messages =
   messages ++ [message]
+
+
+textToByteString :: Text -> LBS.ByteString
+textToByteString =
+  -- TODO: maybe we should be using bytestring instead of text?
+  LBS.fromChunks . (: []) . encodeUtf8
