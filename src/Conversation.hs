@@ -2,9 +2,10 @@ module Conversation (
   Handler,
   Expense (..),
   Engine (..),
-  Conversation.initWithBasicEngine,
-  Conversation.initWithGPTEngine,
-  Conversation.onMessage,
+  PeerInfo (..),
+  initWithBasicEngine,
+  initWithGPTEngine,
+  onMessage,
 ) where
 
 import Conversation.Engines.Basic as BasicEngine
@@ -51,16 +52,22 @@ initWithGPTEngine openAI promptTemplatePath promptParams =
       promptParams
 
 
+data PeerInfo = PeerInfo
+  { peerName :: String
+  , peerChatId :: Maybe ChatId
+  }
+
+
 onMessage ::
   Conversation.Handler ->
   Telegram.Handler ->
   Splitwise.Handler ->
   ChatId ->
-  Maybe ChatId ->
+  PeerInfo ->
   Splitwise.Role ->
   String ->
   IO Bool
-onMessage (Handler _onMessage) telegram splitwise chatId maybePeerChatId ownRole userMessage = do
+onMessage (Handler _onMessage) telegram splitwise chatId peerInfo ownRole userMessage = do
   outcome <- _onMessage userMessage
   case outcome of
     Continue reply -> do
@@ -78,7 +85,7 @@ onMessage (Handler _onMessage) telegram splitwise chatId maybePeerChatId ownRole
           Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
           notifyPeer
             telegram
-            maybePeerChatId
+            (peerChatId peerInfo)
             (peerNotification expense maybeBalance)
 
           pure False

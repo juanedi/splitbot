@@ -104,7 +104,11 @@ update engine telegram splitwise localStore msg model =
               engine
               telegram
               splitwise
-              (getPeerChatId userId model)
+              ( Conversation.PeerInfo
+                  { Conversation.peerName = name (getPeer userId model)
+                  , Conversation.peerChatId = getPeerChatId userId model
+                  }
+              )
               msg
               currentUser
 
@@ -145,20 +149,20 @@ onMessage ::
   Conversation.Engine ->
   Telegram.Handler ->
   Splitwise.Handler ->
-  Maybe ChatId ->
+  Conversation.PeerInfo ->
   Message ->
   User ->
   IO User
-onMessage engine telegram splitwise peerChatId msg currentUser = do
+onMessage engine telegram splitwise peerInfo msg currentUser = do
   let ownChatId = Message.chatId msg
       txt = Message.text msg
 
   conversation <-
     case conversationState currentUser of
       Uninitialized ->
-        initConversation engine currentUser
+        initConversation engine currentUser peerInfo
       Inactive _ ->
-        initConversation engine currentUser
+        initConversation engine currentUser peerInfo
       Active _ conversation ->
         pure conversation
 
@@ -168,7 +172,7 @@ onMessage engine telegram splitwise peerChatId msg currentUser = do
       telegram
       splitwise
       ownChatId
-      peerChatId
+      peerInfo
       (splitwiseRole currentUser)
       txt
 
@@ -185,8 +189,9 @@ onMessage engine telegram splitwise peerChatId msg currentUser = do
 initConversation ::
   Conversation.Engine ->
   User ->
+  Conversation.PeerInfo ->
   IO Conversation.Handler
-initConversation engine user =
+initConversation engine user peerInfo =
   case engine of
     Conversation.Basic ->
       Conversation.initWithBasicEngine (preset user)
@@ -194,10 +199,9 @@ initConversation engine user =
       Conversation.initWithGPTEngine
         openAI
         promptTemplate
-        ( -- TODO: read this from config
-          PromptParams
-            { userName = "Juan"
-            , partnerName = "Caro"
+        ( PromptParams
+            { userName = name user
+            , partnerName = Conversation.peerName peerInfo
             , botName = botName
             }
         )
