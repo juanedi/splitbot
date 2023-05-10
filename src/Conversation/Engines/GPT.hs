@@ -1,7 +1,12 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Conversation.Engines.GPT (Conversation.Engines.GPT.init, PromptParams (..)) where
 
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Outcome (Outcome (..))
+import Data.Aeson (FromJSON, parseJSON, withText)
+import Data.Aeson.TH
+import Data.Char (toLower)
 import Data.Text (Text)
 import qualified Data.Text
 import Dhall (ToDhall)
@@ -27,6 +32,72 @@ data PromptParams = PromptParams
 
 
 instance ToDhall PromptParams
+
+
+data SessionState = InProgress | Done
+
+
+instance FromJSON SessionState where
+  parseJSON =
+    withText
+      "SessionState"
+      ( \text ->
+          case text of
+            "in_progress" -> return InProgress
+            "done" -> return Conversation.Engines.GPT.Done
+            _ -> fail ("Unrecognized state: " ++ Data.Text.unpack text)
+      )
+
+
+data Intent = AskTitle | AskWhoPaid | AskCost | AskSplit | Other
+
+
+instance FromJSON Intent where
+  parseJSON =
+    withText
+      "Intent"
+      ( \text ->
+          case text of
+            "ask_title" -> return AskTitle
+            "ask_who_paid" -> return AskWhoPaid
+            "ask_cost" -> return AskCost
+            "ask_split" -> return AskSplit
+            "other" -> return Other
+            _ -> fail ("Unrecognized intent: " ++ Data.Text.unpack text)
+      )
+
+
+data WhoPaid = User | Partner
+
+
+$( deriveJSON
+    (defaultOptions {constructorTagModifier = map toLower})
+    ''WhoPaid
+ )
+
+
+data ExpenseDraft = ExpenseDraft
+  { title :: Maybe Text
+  , whoPaid :: Maybe WhoPaid
+  , cost :: Maybe Float
+  , split :: Maybe Float
+  }
+  deriving (Generic)
+
+
+instance FromJSON ExpenseDraft
+
+
+data GPTReply = GPTReply
+  { state :: SessionState
+  , response :: Text
+  , intent :: Intent
+  , expense :: ExpenseDraft
+  }
+  deriving (Generic)
+
+
+instance FromJSON GPTReply
 
 
 init :: OpenAI.Handler -> FilePath -> PromptParams -> IO (Text -> IO Outcome)
@@ -67,6 +138,7 @@ onMessage openAI message state = do
       pure
         (state, Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
     Right botMessage ->
+      -- TODO: parse message!
       pure
         ( State (addMessage botMessage (messages state))
         , Continue (Reply.plain (Data.Text.unpack (OpenAI.content botMessage)))
