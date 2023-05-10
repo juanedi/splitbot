@@ -1,7 +1,11 @@
-module Conversation.Engines.GPT (Conversation.Engines.GPT.init) where
+module Conversation.Engines.GPT (Conversation.Engines.GPT.init, prompt) where
 
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Outcome (Outcome (..))
+import Data.Text (Text)
+import Dhall (ToDhall)
+import qualified Dhall
+import GHC.Generics (Generic)
 import OpenAI (ChatMessage, ChatModel (..), ChatParams)
 import qualified OpenAI
 import qualified Telegram.Reply as Reply
@@ -50,3 +54,24 @@ onMessage openAI message state = do
 addMessage :: ChatMessage -> [ChatMessage] -> [ChatMessage]
 addMessage message messages =
   messages ++ [message]
+
+
+initialPrompt :: String
+initialPrompt =
+  "hello"
+
+
+data PromptParams = PromptParams
+  { userName :: String
+  , partnerName :: String
+  }
+  deriving (Eq, Generic, Show)
+
+
+instance ToDhall PromptParams
+
+
+prompt :: String -> String -> IO Text
+prompt userName partnerName = do
+  func <- Dhall.input Dhall.auto "/Users/jedi/code/splitbot/src/Conversation/Engines/prompt.dhall"
+  pure $ func (PromptParams {userName = userName, partnerName = partnerName})

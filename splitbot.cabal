@@ -37,6 +37,7 @@ executable splitbot
     build-depends:    base ^>=4.15.1.0
                     , bytestring
                     , containers
+                    , dhall
                     , http-types
                     , http-client
                     , http-client-tls
