@@ -32,19 +32,19 @@ newtype Handler = Handler
 
 data Engine
   = Basic
-  | GPT OpenAI.Handler
+  | GPT OpenAI.Handler FilePath
 
 
 initWithBasicEngine :: Split -> IO Handler
 initWithBasicEngine preset = Handler <$> BasicEngine.init preset
 
 
-initWithGPTEngine :: OpenAI.Handler -> IO Handler
-initWithGPTEngine openAI =
+initWithGPTEngine :: OpenAI.Handler -> FilePath -> IO Handler
+initWithGPTEngine openAI promptTemplatePath =
   Handler <$> (\f -> f . Data.Text.pack)
     <$> GPTEngine.init
       openAI
-      "/Users/jedi/code/splitbot/src/Conversation/Engines/prompt.dhall"
+      promptTemplatePath
       ( ( PromptParams
             { userName = "Juan"
             , partnerName = "Caro"

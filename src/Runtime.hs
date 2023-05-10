@@ -1,8 +1,10 @@
 module Runtime (start) where
 
+import Control.Applicative (liftA2)
 import Control.Concurrent.Async (concurrently)
 import qualified Conversation
 import qualified Core
+import Data.Maybe (maybe)
 import qualified LocalStore
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -70,9 +72,11 @@ init settings = do
   httpManager <- newTlsManager
   core <- Core.init localStore settings
   let engine =
-        case Settings.openAIToken settings of
-          Just token -> Conversation.GPT (OpenAI.init httpManager token)
-          Nothing -> Conversation.Basic
+        case (Settings.openAIToken settings, Settings.openAIPromptTemplate settings) of
+          (Just token, Just promptTemplate) ->
+            Conversation.GPT (OpenAI.init httpManager token) promptTemplate
+          _ ->
+            Conversation.Basic
   let runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)

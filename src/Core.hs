@@ -183,8 +183,8 @@ initConversation engine user =
   case engine of
     Conversation.Basic ->
       Conversation.initWithBasicEngine (preset user)
-    Conversation.GPT token ->
-      Conversation.initWithGPTEngine token
+    Conversation.GPT openAI promptTemplate ->
+      Conversation.initWithGPTEngine openAI promptTemplate
 
 
 shouldStoreChatId :: ChatId -> User -> Bool
