@@ -7,6 +7,7 @@ module Core (
 
 import Control.Monad (when)
 import qualified Conversation
+import Conversation.Engines.GPT (PromptParams (..))
 import Conversation.Expense (Split (..))
 import qualified LocalStore
 import Settings (Settings)
@@ -178,13 +179,24 @@ onMessage engine telegram splitwise peerChatId msg currentUser = do
     )
 
 
-initConversation :: Conversation.Engine -> User -> IO Conversation.Handler
+initConversation ::
+  Conversation.Engine ->
+  User ->
+  IO Conversation.Handler
 initConversation engine user =
   case engine of
     Conversation.Basic ->
       Conversation.initWithBasicEngine (preset user)
     Conversation.GPT openAI promptTemplate ->
-      Conversation.initWithGPTEngine openAI promptTemplate
+      Conversation.initWithGPTEngine
+        openAI
+        promptTemplate
+        ( -- TODO: read this from config
+          PromptParams
+            { userName = "Juan"
+            , partnerName = "Caro"
+            }
+        )
 
 
 shouldStoreChatId :: ChatId -> User -> Bool

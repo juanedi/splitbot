@@ -8,7 +8,7 @@ module Conversation (
 ) where
 
 import Conversation.Engines.Basic as BasicEngine
-import Conversation.Engines.GPT (PromptParams (..))
+import Conversation.Engines.GPT (PromptParams)
 import qualified Conversation.Engines.GPT as GPTEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
@@ -39,18 +39,13 @@ initWithBasicEngine :: Split -> IO Handler
 initWithBasicEngine preset = Handler <$> BasicEngine.init preset
 
 
-initWithGPTEngine :: OpenAI.Handler -> FilePath -> IO Handler
-initWithGPTEngine openAI promptTemplatePath =
+initWithGPTEngine :: OpenAI.Handler -> FilePath -> PromptParams -> IO Handler
+initWithGPTEngine openAI promptTemplatePath promptParams =
   Handler <$> (\f -> f . Data.Text.pack)
     <$> GPTEngine.init
       openAI
       promptTemplatePath
-      ( ( PromptParams
-            { userName = "Juan"
-            , partnerName = "Caro"
-            }
-        )
-      )
+      promptParams
 
 
 onMessage ::
