@@ -8,7 +8,8 @@ module Conversation (
 ) where
 
 import Conversation.Engines.Basic as BasicEngine
-import Conversation.Engines.GPT as GPTEngine
+import Conversation.Engines.GPT (PromptParams (..))
+import qualified Conversation.Engines.GPT as GPTEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))
@@ -39,7 +40,17 @@ initWithBasicEngine preset = Handler <$> BasicEngine.init preset
 
 
 initWithGPTEngine :: OpenAI.Handler -> IO Handler
-initWithGPTEngine openAI = Handler <$> (\f -> f . Data.Text.pack) <$> GPTEngine.init openAI
+initWithGPTEngine openAI =
+  Handler <$> (\f -> f . Data.Text.pack)
+    <$> GPTEngine.init
+      openAI
+      "/Users/jedi/code/splitbot/src/Conversation/Engines/prompt.dhall"
+      ( ( PromptParams
+            { userName = "Juan"
+            , partnerName = "Caro"
+            }
+        )
+      )
 
 
 onMessage ::

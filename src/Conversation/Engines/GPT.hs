@@ -1,4 +1,4 @@
-module Conversation.Engines.GPT (Conversation.Engines.GPT.init, prompt) where
+module Conversation.Engines.GPT (Conversation.Engines.GPT.init, PromptParams (..)) where
 
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Conversation.Outcome (Outcome (..))
@@ -9,6 +9,7 @@ import qualified Dhall
 import GHC.Generics (Generic)
 import OpenAI (ChatMessage, ChatModel (..), ChatParams)
 import qualified OpenAI
+import System.FilePath.Posix (FilePath)
 import qualified Telegram.Reply as Reply
 
 
@@ -17,9 +18,28 @@ newtype State = State
   }
 
 
-init :: OpenAI.Handler -> IO (Text -> IO Outcome)
-init openAI = do
-  stateVar <- newMVar (State [])
+data PromptParams = PromptParams
+  { userName :: String
+  , partnerName :: String
+  }
+  deriving (Eq, Generic, Show)
+
+
+instance ToDhall PromptParams
+
+
+init :: OpenAI.Handler -> FilePath -> PromptParams -> IO (Text -> IO Outcome)
+init openAI promptTemplatePath promptParams = do
+  promptTemplate <- Dhall.input Dhall.auto (Data.Text.pack promptTemplatePath)
+
+  let prompt =
+        OpenAI.ChatMessage
+          { OpenAI.content = promptTemplate promptParams
+          , OpenAI.role = OpenAI.User
+          }
+
+  stateVar <- newMVar (State [prompt])
+
   pure $ \message -> do
     modifyMVar
       stateVar
@@ -55,24 +75,3 @@ onMessage openAI message state = do
 addMessage :: ChatMessage -> [ChatMessage] -> [ChatMessage]
 addMessage message messages =
   messages ++ [message]
-
-
-initialPrompt :: String
-initialPrompt =
-  "hello"
-
-
-data PromptParams = PromptParams
-  { userName :: String
-  , partnerName :: String
-  }
-  deriving (Eq, Generic, Show)
-
-
-instance ToDhall PromptParams
-
-
-prompt :: String -> String -> IO Text
-prompt userName partnerName = do
-  func <- Dhall.input Dhall.auto "/Users/jedi/code/splitbot/src/Conversation/Engines/prompt.dhall"
-  pure $ func (PromptParams {userName = userName, partnerName = partnerName})

@@ -70,7 +70,7 @@ instance ToJSON ChatModel where
       )
 
 
-data Role = System | User | Assistant
+data Role = System | User | Assistant deriving (Show)
 $( deriveJSON
     (defaultOptions {constructorTagModifier = map toLower})
     ''Role
@@ -81,7 +81,7 @@ data ChatMessage = ChatMessage
   { role :: Role
   , content :: Text
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 
 instance ToJSON ChatMessage
@@ -144,7 +144,7 @@ chat (Handler http token) params = do
       Left err ->
         pure (Left (GenericError err))
     else do
-      putStrLn ("Unexpected status code (" ++ show statusCode_ ++ "). Response body follows:\n" ++ (show responseBody_))
+      putStrLn ("Unexpected status code (" ++ show statusCode_ ++ "). Response body follows:\n" ++ show responseBody_)
       return (Left (UnexpectedStatusCode statusCode_))
 
 
