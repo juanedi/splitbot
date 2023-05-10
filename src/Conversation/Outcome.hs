@@ -8,3 +8,4 @@ data Outcome
   = Continue Reply
   | Terminate Reply
   | Done Expense
+  deriving (Show)

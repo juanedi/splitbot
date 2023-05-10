@@ -3,7 +3,10 @@
 module Conversation.Engines.GPT (Conversation.Engines.GPT.init, PromptParams (..)) where
 
 import Control.Concurrent.MVar (modifyMVar, newMVar)
-import Conversation.Outcome (Outcome (..))
+import Conversation.Expense (Expense)
+import qualified Conversation.Expense as Expense
+import Conversation.Outcome (Outcome)
+import qualified Conversation.Outcome as Outcome
 import Data.Aeson (FromJSON, parseJSON, withText)
 import qualified Data.Aeson
 import Data.Aeson.TH
@@ -47,7 +50,7 @@ instance FromJSON SessionState where
       ( \text ->
           case text of
             "in_progress" -> return InProgress
-            "done" -> return Conversation.Engines.GPT.Done
+            "done" -> return Done
             _ -> fail ("Unrecognized state: " ++ Data.Text.unpack text)
       )
 
@@ -83,7 +86,8 @@ data ExpenseDraft = ExpenseDraft
   { title :: Maybe Text
   , whoPaid :: Maybe WhoPaid
   , cost :: Maybe Float
-  , split :: Maybe Float
+  , -- TODO: account for 'proportionally'
+    split :: Maybe Float
   }
   deriving (Generic)
 
@@ -122,11 +126,11 @@ init openAI promptTemplatePath promptParams = do
 
 
 onMessage :: OpenAI.Handler -> Text -> State -> IO (State, Outcome)
-onMessage openAI message state = do
+onMessage openAI message s = do
   let withUserMessage =
         addMessage
           (OpenAI.ChatMessage {OpenAI.content = message, OpenAI.role = OpenAI.User})
-          (messages state)
+          (messages s)
   result <-
     OpenAI.chat
       openAI
@@ -139,16 +143,48 @@ onMessage openAI message state = do
   case result of
     Left err ->
       pure
-        (state, Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
+        (s, Outcome.Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
     Right botMessage ->
       case Data.Aeson.eitherDecode (textToByteString (OpenAI.content botMessage)) of
         Left err ->
-          pure (state, Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
+          -- TODO: nudge the bot and try again?
+          pure (s, Outcome.Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
         Right reply ->
           pure
-            ( State (addMessage botMessage (messages state))
-            , Continue (Reply.plain (Data.Text.unpack (response reply)))
+            ( State (addMessage botMessage (messages s))
+            , case state reply of
+                InProgress ->
+                  Outcome.Continue (Reply.plain (Data.Text.unpack (response reply)))
+                Done ->
+                  case checkExpense (expense reply) of
+                    Nothing ->
+                      Outcome.Continue (Reply.plain (Data.Text.unpack (response reply)))
+                    Just e ->
+                      Outcome.Done e
             )
+
+
+checkExpense :: ExpenseDraft -> Maybe Expense
+checkExpense draft =
+  initExpense
+    <$> title draft
+    <*> whoPaid draft
+    <*> cost draft
+    <*> split draft
+  where
+    initExpense title_ whoPaid_ cost_ split_ =
+      Expense.Expense
+        { Expense.description =
+            Expense.Description (Data.Text.unpack title_)
+        , Expense.payer =
+            case whoPaid_ of
+              User -> Expense.Me
+              Partner -> Expense.They
+        , Expense.amount =
+            Expense.Amount (floor cost_)
+        , Expense.split =
+            Expense.Split (floor split_)
+        }
 
 
 addMessage :: ChatMessage -> [ChatMessage] -> [ChatMessage]

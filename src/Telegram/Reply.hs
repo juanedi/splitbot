@@ -14,11 +14,13 @@ data Reply
   = Reply
       String
       ReplyKeyboard
+  deriving (Show)
 
 
 data ReplyKeyboard
   = Normal
   | Options [String]
+  deriving (Show)
 
 
 apologizing :: Reply -> Reply
