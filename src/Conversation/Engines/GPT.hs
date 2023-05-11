@@ -40,7 +40,7 @@ data PromptParams = PromptParams
 instance ToDhall PromptParams
 
 
-data SessionState = InProgress | Done
+data SessionState = InProgress | Done deriving (Show)
 
 
 instance FromJSON SessionState where
@@ -55,7 +55,13 @@ instance FromJSON SessionState where
       )
 
 
-data Intent = AskTitle | AskWhoPaid | AskCost | AskSplit | Other
+data Intent
+  = AskTitle
+  | AskWhoPaid
+  | AskCost
+  | AskSplit
+  | Other
+  deriving (Show)
 
 
 instance FromJSON Intent where
@@ -73,23 +79,23 @@ instance FromJSON Intent where
       )
 
 
-data WhoPaid = User | Partner
+data WhoPaid
+  = User
+  | Partner
+  deriving (Show)
 
 
-$( deriveJSON
-    (defaultOptions {constructorTagModifier = map toLower})
-    ''WhoPaid
- )
+$(deriveJSON (defaultOptions {constructorTagModifier = map toLower}) ''WhoPaid)
 
 
 data ExpenseDraft = ExpenseDraft
   { title :: Maybe Text
-  , whoPaid :: Maybe WhoPaid
+  , who_paid :: Maybe WhoPaid
   , cost :: Maybe Float
   , -- TODO: account for 'proportionally'
     split :: Maybe Float
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 
 instance FromJSON ExpenseDraft
@@ -101,7 +107,7 @@ data GPTReply = GPTReply
   , intent :: Intent
   , expense :: ExpenseDraft
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 
 instance FromJSON GPTReply
@@ -149,7 +155,7 @@ onMessage openAI message s = do
         Left err ->
           -- TODO: nudge the bot and try again?
           pure (s, Outcome.Continue (Reply.plain ("Ooops something went wrong 😅" ++ show err)))
-        Right reply ->
+        Right reply -> do
           pure
             ( State (addMessage botMessage (messages s))
             , case state reply of
@@ -168,7 +174,7 @@ checkExpense :: ExpenseDraft -> Maybe Expense
 checkExpense draft =
   initExpense
     <$> title draft
-    <*> whoPaid draft
+    <*> who_paid draft
     <*> cost draft
     <*> split draft
   where
