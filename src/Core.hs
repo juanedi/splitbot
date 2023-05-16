@@ -7,6 +7,7 @@ module Core (
 
 import Control.Monad (when)
 import qualified Conversation
+import Conversation.Engines.GPT (PromptParams (..))
 import Conversation.Expense (Split (..))
 import qualified LocalStore
 import Settings (Settings)
@@ -29,7 +30,8 @@ data Model = Model
 
 
 data User = User
-  { telegramId :: Username
+  { name :: String
+  , telegramId :: Username
   , splitwiseRole :: Splitwise.Role
   , preset :: Split
   , conversationState :: ConversationState
@@ -61,14 +63,16 @@ init localStore settings = do
     ( Model
         { userA =
             User
-              { telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
+              { name = Settings.userAName settings
+              , telegramId = Telegram.Username.fromString (Settings.userATelegramId settings)
               , splitwiseRole = Splitwise.Owner
               , preset = Split presetA
               , conversationState = maybe Uninitialized Inactive chatIdA
               }
         , userB =
             User
-              { telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
+              { name = Settings.userBName settings
+              , telegramId = Telegram.Username.fromString (Settings.userBTelegramId settings)
               , splitwiseRole = Splitwise.Peer
               , preset = Split presetB
               , conversationState = maybe Uninitialized Inactive chatIdB
@@ -78,13 +82,14 @@ init localStore settings = do
 
 
 update ::
+  Conversation.Engine ->
   Telegram.Handler ->
   Splitwise.Handler ->
   LocalStore.Handler ->
   Message ->
   Model ->
   IO Model
-update telegram splitwise localStore msg model =
+update engine telegram splitwise localStore msg model =
   let username = Message.username msg
    in case matchUserId model username of
         Nothing -> do
@@ -96,9 +101,14 @@ update telegram splitwise localStore msg model =
 
           updatedCurrentUser <-
             onMessage
+              engine
               telegram
               splitwise
-              (getPeerChatId userId model)
+              ( Conversation.PeerInfo
+                  { Conversation.peerName = name (getPeer userId model)
+                  , Conversation.peerChatId = getPeerChatId userId model
+                  }
+              )
               msg
               currentUser
 
@@ -136,22 +146,23 @@ chatIdPath userId =
 
 
 onMessage ::
+  Conversation.Engine ->
   Telegram.Handler ->
   Splitwise.Handler ->
-  Maybe ChatId ->
+  Conversation.PeerInfo ->
   Message ->
   User ->
   IO User
-onMessage telegram splitwise peerChatId msg currentUser = do
+onMessage engine telegram splitwise peerInfo msg currentUser = do
   let ownChatId = Message.chatId msg
       txt = Message.text msg
 
   conversation <-
     case conversationState currentUser of
       Uninitialized ->
-        Conversation.init (preset currentUser)
+        initConversation engine currentUser peerInfo
       Inactive _ ->
-        Conversation.init (preset currentUser)
+        initConversation engine currentUser peerInfo
       Active _ conversation ->
         pure conversation
 
@@ -161,7 +172,7 @@ onMessage telegram splitwise peerChatId msg currentUser = do
       telegram
       splitwise
       ownChatId
-      peerChatId
+      peerInfo
       (splitwiseRole currentUser)
       txt
 
@@ -173,6 +184,27 @@ onMessage telegram splitwise peerChatId msg currentUser = do
               else Inactive ownChatId
         }
     )
+
+
+initConversation ::
+  Conversation.Engine ->
+  User ->
+  Conversation.PeerInfo ->
+  IO Conversation.Handler
+initConversation engine user peerInfo =
+  case engine of
+    Conversation.Basic ->
+      Conversation.initWithBasicEngine (preset user)
+    Conversation.GPT openAI promptTemplate botName ->
+      Conversation.initWithGPTEngine
+        openAI
+        promptTemplate
+        ( PromptParams
+            { userName = name user
+            , partnerName = Conversation.peerName peerInfo
+            , botName = botName
+            }
+        )
 
 
 shouldStoreChatId :: ChatId -> User -> Bool

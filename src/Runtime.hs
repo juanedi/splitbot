@@ -1,11 +1,14 @@
 module Runtime (start) where
 
+import Control.Applicative (liftA2)
 import Control.Concurrent.Async (concurrently)
 import qualified Conversation
 import qualified Core
+import Data.Maybe (maybe)
 import qualified LocalStore
 import qualified Network.HTTP.Client as Http
 import Network.HTTP.Client.TLS (newTlsManager)
+import qualified OpenAI
 import Queue (Queue)
 import qualified Queue
 import Settings (Settings)
@@ -22,6 +25,7 @@ data Runtime = Runtime
   , splitwise :: Splitwise.Handler
   , localStore :: LocalStore.Handler
   , queue :: Queue Message
+  , engine :: Conversation.Engine
   , core :: Core.Model
   }
 
@@ -67,6 +71,15 @@ init settings = do
   queue <- Queue.new
   httpManager <- newTlsManager
   core <- Core.init localStore settings
+  let engine =
+        case (Settings.openAIToken settings, Settings.openAIPromptTemplate settings) of
+          (Just token, Just promptTemplate) ->
+            Conversation.GPT
+              (OpenAI.init httpManager token)
+              promptTemplate
+              (Settings.botName settings)
+          _ ->
+            Conversation.Basic
   let runtime =
         Runtime
           { telegram = Telegram.init httpManager (Telegram.Token $ Settings.telegramToken settings)
@@ -78,6 +91,7 @@ init settings = do
                 (Settings.userBSplitwiseId settings)
           , localStore = localStore
           , queue = queue
+          , engine = engine
           , core = core
           }
   return runtime
@@ -93,6 +107,7 @@ loop runtime = do
   event <- Queue.dequeue (queue runtime)
   updatedCore <-
     Core.update
+      (engine runtime)
       (telegram runtime)
       (splitwise runtime)
       (localStore runtime)

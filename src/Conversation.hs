@@ -1,15 +1,22 @@
 module Conversation (
   Handler,
   Expense (..),
-  Conversation.init,
-  Conversation.onMessage,
+  Engine (..),
+  PeerInfo (..),
+  initWithBasicEngine,
+  initWithGPTEngine,
+  onMessage,
 ) where
 
-import Conversation.BasicEngine as BasicEngine
+import Conversation.Engines.Basic as BasicEngine
+import Conversation.Engines.GPT (PromptParams)
+import qualified Conversation.Engines.GPT as GPTEngine
 import Conversation.Expense (Expense, Split, Who (..))
 import qualified Conversation.Expense as Expense
 import Conversation.Outcome (Outcome (..))
 import Data.Maybe (fromMaybe)
+import qualified Data.Text
+import qualified OpenAI
 import qualified Splitwise
 import Splitwise.Api.Balance (Balance)
 import qualified Splitwise.Api.Balance as Balance
@@ -24,9 +31,31 @@ newtype Handler = Handler
   }
 
 
-init :: Split -> IO Handler
-init preset =
-  Handler <$> BasicEngine.init preset
+data Engine
+  = Basic
+  | GPT OpenAI.Handler FilePath BotName
+
+
+type BotName = String
+
+
+initWithBasicEngine :: Split -> IO Handler
+initWithBasicEngine preset = Handler <$> BasicEngine.init preset
+
+
+initWithGPTEngine :: OpenAI.Handler -> FilePath -> PromptParams -> IO Handler
+initWithGPTEngine openAI promptTemplatePath promptParams =
+  Handler <$> (\f -> f . Data.Text.pack)
+    <$> GPTEngine.init
+      openAI
+      promptTemplatePath
+      promptParams
+
+
+data PeerInfo = PeerInfo
+  { peerName :: String
+  , peerChatId :: Maybe ChatId
+  }
 
 
 onMessage ::
@@ -34,11 +63,11 @@ onMessage ::
   Telegram.Handler ->
   Splitwise.Handler ->
   ChatId ->
-  Maybe ChatId ->
+  PeerInfo ->
   Splitwise.Role ->
   String ->
   IO Bool
-onMessage (Handler _onMessage) telegram splitwise chatId maybePeerChatId ownRole userMessage = do
+onMessage (Handler _onMessage) telegram splitwise chatId peerInfo ownRole userMessage = do
   outcome <- _onMessage userMessage
   case outcome of
     Continue reply -> do
@@ -56,7 +85,7 @@ onMessage (Handler _onMessage) telegram splitwise chatId maybePeerChatId ownRole
           Telegram.sendMessage telegram chatId (ownNotification maybeBalance)
           notifyPeer
             telegram
-            maybePeerChatId
+            (peerChatId peerInfo)
             (peerNotification expense maybeBalance)
 
           pure False
